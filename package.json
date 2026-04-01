@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "@emoji-mart/data": "^1.2.1",
-    "@emoji-mart/react": "^1.1.1",
     "@iconify-json/tabler": "^1.2.33",
     "@iconify/react": "^6.0.2",
     "react": "^19.2.4",
