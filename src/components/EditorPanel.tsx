@@ -1,93 +1,393 @@
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { loadIconSourceData, searchIconOptions, type IconSource, type IconSourceData } from '../data/iconLibrary'
 import type { Segment } from '../types'
+import { IconGlyph } from './IconGlyph'
+
+type MoveDirection = 'up' | 'down'
 
 type EditorPanelProps = {
-  title: string
-  subtitle: string
+  topic: string
   segments: Segment[]
-  activeIndex: number
-  onTitleChange: (value: string) => void
-  onSubtitleChange: (value: string) => void
-  onSegmentKeywordChange: (index: number, value: string) => void
-  onSegmentTextChange: (index: number, value: string) => void
-  onCycleIcon: (index: number) => void
+  activeSegmentId: string | null
+  onTopicChange: (value: string) => void
+  onSelectSegment: (segmentId: string) => void
+  onSegmentKeywordChange: (segmentId: string, keyword: string) => void
+  onSegmentTextChange: (segmentId: string, text: string) => void
+  onSegmentIconSelect: (segmentId: string, icon: string) => void
+  onReorderSegment: (draggedSegmentId: string, targetSegmentId: string) => void
+  onMoveSegment: (segmentId: string, direction: MoveDirection) => void
 }
 
+const ICON_SOURCE_LABELS: Record<IconSource, string> = {
+  emoji: 'Emoji',
+  symbol: 'Symbols',
+}
+
+const FALLBACK_CATEGORY = 'General'
+const ICON_GRID_SKELETON_COUNT = 54
+const MOVE_UP_GLYPH = '\u2191'
+const MOVE_DOWN_GLYPH = '\u2193'
+const DRAG_HANDLE_GLYPH = '\u22EE\u22EE'
+
 export function EditorPanel({
-  title,
-  subtitle,
+  topic,
   segments,
-  activeIndex,
-  onTitleChange,
-  onSubtitleChange,
+  activeSegmentId,
+  onTopicChange,
+  onSelectSegment,
   onSegmentKeywordChange,
   onSegmentTextChange,
-  onCycleIcon,
+  onSegmentIconSelect,
+  onReorderSegment,
+  onMoveSegment,
 }: EditorPanelProps) {
-  const activeSegment = segments[activeIndex]
+  const activeSegment = segments.find((segment) => segment.id === activeSegmentId) ?? null
+  const [isPickerOpen, setIsPickerOpen] = useState(false)
+  const [activeSource, setActiveSource] = useState<IconSource>('emoji')
+  const [query, setQuery] = useState('')
+  const [activeCategory, setActiveCategory] = useState<string>(FALLBACK_CATEGORY)
+  const [iconDataBySource, setIconDataBySource] = useState<Partial<Record<IconSource, IconSourceData>>>({})
+  const [pickerLoadError, setPickerLoadError] = useState<string | null>(null)
+  const [pickerLoadRequestKey, setPickerLoadRequestKey] = useState(0)
+  const [draggedSegmentId, setDraggedSegmentId] = useState<string | null>(null)
+  const pickerRef = useRef<HTMLDivElement | null>(null)
+  const pickerTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const activeSourceData = iconDataBySource[activeSource]
+
+  useEffect(() => {
+    if (!isPickerOpen) {
+      return undefined
+    }
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (!pickerRef.current) {
+        return
+      }
+
+      const targetNode = event.target as Node
+      const clickedInsidePicker = pickerRef.current.contains(targetNode)
+      const clickedTrigger = pickerTriggerRef.current?.contains(targetNode) ?? false
+
+      if (!clickedInsidePicker && !clickedTrigger) {
+        setIsPickerOpen(false)
+      }
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsPickerOpen(false)
+      }
+    }
+
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [isPickerOpen])
+
+  useEffect(() => {
+    if (!isPickerOpen || activeSourceData) {
+      return undefined
+    }
+
+    let cancelled = false
+
+    loadIconSourceData(activeSource)
+      .then((sourceData) => {
+        if (cancelled) {
+          return
+        }
+
+        setIconDataBySource((current) => {
+          if (current[activeSource]) {
+            return current
+          }
+
+          return {
+            ...current,
+            [activeSource]: sourceData,
+          }
+        })
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPickerLoadError(`Could not load ${ICON_SOURCE_LABELS[activeSource].toLowerCase()} icons.`)
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeSource, activeSourceData, isPickerOpen, pickerLoadRequestKey])
+  const filteredOptions = useMemo(
+    () => searchIconOptions(activeSourceData?.options ?? [], query),
+    [activeSourceData, query],
+  )
+
+  const categories = useMemo(() => {
+    const sourceCategories = activeSourceData?.categories ?? []
+
+    if (!query.trim()) {
+      return sourceCategories
+    }
+
+    return sourceCategories.filter((category) =>
+      filteredOptions.some((option) => option.category === category),
+    )
+  }, [activeSourceData, filteredOptions, query])
+
+  const selectedCategory = categories.includes(activeCategory) ? activeCategory : (categories[0] ?? FALLBACK_CATEGORY)
+
+  const visibleOptions = useMemo(() => {
+    if (query.trim()) {
+      return filteredOptions
+    }
+
+    return filteredOptions.filter((option) => option.category === selectedCategory)
+  }, [filteredOptions, query, selectedCategory])
+
+  const isPickerLoading = isPickerOpen && !activeSourceData && !pickerLoadError
+  const shouldShowLoadError = !isPickerLoading && !activeSourceData && Boolean(pickerLoadError)
 
   return (
-    <section className="panel panel--editor">
-      <div className="panel__header">
-        <div>
-          <p className="panel__eyebrow">Edit segments</p>
-          <h2>Fine-tune the recall cues</h2>
-        </div>
+    <section className="workspace-panel glass-panel">
+      <div className="panel-head">
+        <p className="panel-kicker">Refine</p>
+        <h2>Segment Editor</h2>
       </div>
 
-      <div className="editor-meta">
-        <label>
-          Topic title
-          <input
-            type="text"
-            value={title}
-            onChange={(event) => onTitleChange(event.target.value)}
-            placeholder="Main topic"
-          />
-        </label>
+      <label className="field">
+        <span className="field__label">Main topic</span>
+        <input
+          className="field__control"
+          value={topic}
+          onChange={(event) => onTopicChange(event.target.value)}
+          placeholder="Project Presentation"
+        />
+      </label>
 
-        <label>
-          Topic subtitle
-          <input
-            type="text"
-            value={subtitle}
-            onChange={(event) => onSubtitleChange(event.target.value)}
-            placeholder="Short supporting line"
-          />
-        </label>
+      <div className="segment-strip" role="tablist" aria-label="Segments">
+        {segments.map((segment, index) => {
+          const isActive = segment.id === activeSegmentId
+
+          return (
+            <div
+              key={segment.id}
+              className={`segment-chip ${isActive ? 'is-active' : ''} ${draggedSegmentId === segment.id ? 'is-dragging' : ''}`}
+              role="tab"
+              aria-selected={isActive}
+              draggable
+              onDragStart={(event) => {
+                setDraggedSegmentId(segment.id)
+                event.dataTransfer.effectAllowed = 'move'
+                event.dataTransfer.setData('text/plain', segment.id)
+              }}
+              onDragOver={(event) => {
+                event.preventDefault()
+                event.dataTransfer.dropEffect = 'move'
+              }}
+              onDrop={(event) => {
+                event.preventDefault()
+                const sourceId = event.dataTransfer.getData('text/plain') || draggedSegmentId
+                if (sourceId && sourceId !== segment.id) {
+                  onReorderSegment(sourceId, segment.id)
+                }
+                setDraggedSegmentId(null)
+              }}
+              onDragEnd={() => setDraggedSegmentId(null)}
+            >
+              <button type="button" className="segment-chip__main" onClick={() => onSelectSegment(segment.id)}>
+                <span>{String(segment.order).padStart(2, '0')}</span>
+                <IconGlyph value={segment.icon} className="segment-chip__icon" />
+                <span>{segment.keyword}</span>
+              </button>
+
+              <div className="segment-chip__controls">
+                <button
+                  type="button"
+                  className="segment-chip__ctrl"
+                  onClick={() => onMoveSegment(segment.id, 'up')}
+                  disabled={index === 0}
+                  aria-label={`Move ${segment.keyword} up`}
+                >
+                  {MOVE_UP_GLYPH}
+                </button>
+                <button
+                  type="button"
+                  className="segment-chip__ctrl"
+                  onClick={() => onMoveSegment(segment.id, 'down')}
+                  disabled={index === segments.length - 1}
+                  aria-label={`Move ${segment.keyword} down`}
+                >
+                  {MOVE_DOWN_GLYPH}
+                </button>
+                <span className="segment-chip__drag-handle" aria-hidden="true">
+                  {DRAG_HANDLE_GLYPH}
+                </span>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       {activeSegment ? (
         <div className="editor-card">
           <div className="editor-card__head">
-            <span className="editor-card__index">{activeIndex + 1}</span>
-            <button type="button" className="icon-btn" onClick={() => onCycleIcon(activeIndex)}>
-              {activeSegment.icon}
+            <p className="meta-text">Active Segment {String(activeSegment.order).padStart(2, '0')}</p>
+            <button
+              type="button"
+              className="icon-picker-trigger"
+              ref={pickerTriggerRef}
+              onClick={() =>
+                setIsPickerOpen((current) => {
+                  const next = !current
+
+                  if (next) {
+                    setPickerLoadError(null)
+                    setPickerLoadRequestKey((request) => request + 1)
+                  }
+
+                  return next
+                })
+              }
+              aria-expanded={isPickerOpen}
+            >
+              <IconGlyph value={activeSegment.icon} className="icon-picker-trigger__icon" />
+              <span>Pick Icon</span>
             </button>
           </div>
 
-          <label>
-            Keyword
+          {isPickerOpen ? <div className="icon-picker-backdrop" aria-hidden="true" /> : null}
+
+          {isPickerOpen ? (
+            <div ref={pickerRef} className="icon-picker-panel" role="dialog" aria-label="Icon Picker">
+              <div className="icon-picker-panel__head">
+                <div className="icon-source-tabs" role="tablist" aria-label="Icon sources">
+                  {(Object.keys(ICON_SOURCE_LABELS) as IconSource[]).map((source) => (
+                    <button
+                      key={source}
+                      type="button"
+                      className={`icon-source-tab ${activeSource === source ? 'is-active' : ''}`}
+                      role="tab"
+                      aria-selected={activeSource === source}
+                      onClick={() => {
+                        setActiveSource(source)
+                        setPickerLoadError(null)
+                        setActiveCategory(iconDataBySource[source]?.categories[0] ?? FALLBACK_CATEGORY)
+                      }}
+                    >
+                      {ICON_SOURCE_LABELS[source]}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" className="icon-picker-close" onClick={() => setIsPickerOpen(false)}>
+                  Close
+                </button>
+              </div>
+
+              <label className="icon-picker-search">
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder={`Search ${ICON_SOURCE_LABELS[activeSource].toLowerCase()}...`}
+                  disabled={!activeSourceData}
+                />
+              </label>
+
+              {isPickerLoading ? (
+                <div className="icon-picker-loading" role="status" aria-live="polite">
+                  <div className="icon-category-strip">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                      <span key={`category-skeleton-${index}`} className="icon-category-pill icon-category-pill--skeleton" />
+                    ))}
+                  </div>
+                  <div className="icon-grid icon-grid--skeleton" aria-hidden="true">
+                    {Array.from({ length: ICON_GRID_SKELETON_COUNT }).map((_, index) => (
+                      <span key={`icon-skeleton-${index}`} className="icon-grid__item icon-grid__item--skeleton" />
+                    ))}
+                  </div>
+                  <p className="empty-text">Loading icons...</p>
+                </div>
+              ) : null}
+
+              {shouldShowLoadError ? (
+                <div className="icon-picker-error">
+                  <p className="empty-text">{pickerLoadError}</p>
+                  <button
+                    type="button"
+                    className="icon-picker-retry"
+                    onClick={() => {
+                      setPickerLoadError(null)
+                      setPickerLoadRequestKey((current) => current + 1)
+                    }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : null}
+
+              {activeSourceData ? (
+                <>
+                  <div className="icon-category-strip">
+                    {categories.map((category) => (
+                      <button
+                        key={category}
+                        type="button"
+                        className={`icon-category-pill ${selectedCategory === category ? 'is-active' : ''}`}
+                        onClick={() => setActiveCategory(category)}
+                      >
+                        {category}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="icon-grid" role="list" aria-label="Icon options">
+                    {visibleOptions.map((option) => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        className={`icon-grid__item ${activeSegment.icon === option.glyph ? 'is-active' : ''}`}
+                        onClick={() => {
+                          onSegmentIconSelect(activeSegment.id, option.glyph)
+                          setIsPickerOpen(false)
+                        }}
+                        title={`${option.label} (${option.category})`}
+                      >
+                        <IconGlyph value={option.glyph} className="icon-grid__glyph" />
+                      </button>
+                    ))}
+                  </div>
+
+                  {visibleOptions.length === 0 ? <p className="empty-text">No icons matched your search.</p> : null}
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
+          <label className="field">
+            <span className="field__label">Keyword (1-3 words)</span>
             <input
-              type="text"
+              className="field__control"
               value={activeSegment.keyword}
-              onChange={(event) => onSegmentKeywordChange(activeIndex, event.target.value)}
-              placeholder="Keyword"
+              onChange={(event) => onSegmentKeywordChange(activeSegment.id, event.target.value)}
             />
           </label>
 
-          <label>
-            Segment text
+          <label className="field">
+            <span className="field__label">Segment details</span>
             <textarea
+              className="field__control field__control--textarea field__control--tight"
               value={activeSegment.text}
-              onChange={(event) => onSegmentTextChange(activeIndex, event.target.value)}
-              placeholder="Full segment text"
+              onChange={(event) => onSegmentTextChange(activeSegment.id, event.target.value)}
             />
           </label>
         </div>
       ) : (
-        <div className="empty-state">
-          <p>Generate a ClockRail map to begin editing segments.</p>
-        </div>
+        <p className="empty-text">Generate a map to edit segments.</p>
       )}
     </section>
   )

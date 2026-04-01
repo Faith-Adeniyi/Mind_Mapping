@@ -1,149 +1,236 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
 import { AppShell } from './components/AppShell'
 import { ClockRail } from './components/ClockRail'
 import { EditorPanel } from './components/EditorPanel'
+import { GridView } from './components/GridView'
 import { InputPanel } from './components/InputPanel'
+import { LinearView } from './components/LinearView'
 import { PresentationMode } from './components/PresentationMode'
 import { TopBar } from './components/TopBar'
+import { TONE_SEQUENCE } from './data/iconDefaults'
+import type { MapDraft, PresentationState, Segment } from './types'
 import { assignIcon } from './utils/assignIcon'
-import { clearDraft, loadDraft, saveDraft } from './utils/storage'
-import { createPreview } from './utils/segmentPreview'
 import { extractKeyword } from './utils/extractKeyword'
-import { combineSegments, parseTextIntoSegments, splitLongSegments } from './utils/segmentText'
-import type { DraftState, Segment } from './types'
+import { createPreview } from './utils/segmentPreview'
+import { segmentText } from './utils/segmentText'
+import { clearDraft, loadDraft, saveDraft } from './utils/storage'
 
-const DEFAULT_TITLE = 'ClockRail'
-const DEFAULT_SUBTITLE = 'Visual memory mapping for presentations'
-const MAX_SEGMENTS = 12
+const DEFAULT_TOPIC = 'Project Presentation'
 const MIN_SEGMENTS = 4
-const INITIAL_WIDTH = 960
-const SEGMENT_LIBRARY = [
-  'Welcome to the map',
-  'Key idea one',
-  'Key idea two',
-  'Key idea three',
-  'Key idea four',
-  'Key idea five',
-  'Key idea six',
-  'Key idea seven',
-]
-const ICONS = ['👋', '🎯', '🧭', '💡', '📌', '🚀', '📊', '⭐', '🗺️', '📚', '⚡', '🎉']
+const MAX_SEGMENTS = 12
 
-function buildSegments(text: string): Segment[] {
-  const parsedSegments = parseTextIntoSegments(text)
-  const limitedSegments = combineSegments(parsedSegments, MAX_SEGMENTS)
-  const normalizedSegments = splitLongSegments(limitedSegments, MIN_SEGMENTS)
-
-  return normalizedSegments.map((segmentText, index) => {
-    const keyword = extractKeyword(segmentText)
-    const icon = assignIcon(segmentText)
-    const tones = ['indigo', 'pink', 'amber', 'emerald', 'cyan']
-
-    return {
-      id: index + 1,
-      text: segmentText,
-      keyword,
-      icon,
-      preview: createPreview(segmentText),
-      tone: tones[index % tones.length],
-    }
-  })
-}
-
-function makeEmptySegment(nextId: number): Segment {
-  const template = SEGMENT_LIBRARY[nextId % SEGMENT_LIBRARY.length] ?? 'New card'
+function createDefaultDraft(): MapDraft {
   return {
-    id: nextId,
-    text: template,
-    keyword: `Card ${nextId}`,
-    icon: ICONS[nextId % ICONS.length] ?? '📌',
-    preview: createPreview(template),
-    tone: ['indigo', 'pink', 'amber', 'emerald', 'cyan'][nextId % 5],
-  }
-}
-
-function createDefaultDraft(): DraftState {
-  return {
-    title: DEFAULT_TITLE,
-    subtitle: DEFAULT_SUBTITLE,
+    topic: DEFAULT_TOPIC,
     rawText: '',
     segments: [],
-    activeIndex: 0,
-    presentation: {
-      isOpen: false,
-      currentIndex: 0,
-      isFullscreen: false,
-    },
+    activeSegmentId: null,
+    layoutMode: 'clock',
   }
+}
+
+function normalizeDraft(draft: MapDraft): MapDraft {
+  if (draft.segments.length === 0) {
+    return {
+      ...draft,
+      activeSegmentId: null,
+    }
+  }
+
+  if (draft.activeSegmentId && draft.segments.some((segment) => segment.id === draft.activeSegmentId)) {
+    return draft
+  }
+
+  return {
+    ...draft,
+    activeSegmentId: draft.segments[0]?.id ?? null,
+  }
+}
+
+function guessTopic(rawText: string, fallbackTopic: string) {
+  const firstLine = rawText
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .find((line) => line.length > 0)
+
+  if (!firstLine) {
+    return fallbackTopic || DEFAULT_TOPIC
+  }
+
+  return firstLine.length > 64 ? `${firstLine.slice(0, 61).trimEnd()}...` : firstLine
+}
+
+function createSegments(rawText: string) {
+  const chunks = segmentText(rawText, {
+    minSegments: MIN_SEGMENTS,
+    maxSegments: MAX_SEGMENTS,
+  })
+
+  return chunks.map((chunk, index): Segment => ({
+    id: `segment-${index + 1}`,
+    order: index + 1,
+    text: chunk,
+    keyword: extractKeyword(chunk),
+    icon: assignIcon(chunk),
+    preview: createPreview(chunk),
+    tone: TONE_SEQUENCE[index % TONE_SEQUENCE.length] ?? 'primary',
+  }))
+}
+
+function getActiveIndex(segments: Segment[], activeSegmentId: string | null) {
+  if (!activeSegmentId) {
+    return 0
+  }
+
+  const index = segments.findIndex((segment) => segment.id === activeSegmentId)
+  return index >= 0 ? index : 0
+}
+
+function reorderSegments(segments: Segment[], draggedSegmentId: string, targetSegmentId: string) {
+  const fromIndex = segments.findIndex((segment) => segment.id === draggedSegmentId)
+  const toIndex = segments.findIndex((segment) => segment.id === targetSegmentId)
+
+  if (fromIndex < 0 || toIndex < 0 || fromIndex === toIndex) {
+    return segments
+  }
+
+  const next = [...segments]
+  const [moved] = next.splice(fromIndex, 1)
+
+  if (!moved) {
+    return segments
+  }
+
+  next.splice(toIndex, 0, moved)
+
+  return next.map((segment, index) => ({
+    ...segment,
+    order: index + 1,
+  }))
+}
+
+function moveSegment(segments: Segment[], segmentId: string, direction: 'up' | 'down') {
+  const index = segments.findIndex((segment) => segment.id === segmentId)
+
+  if (index < 0) {
+    return segments
+  }
+
+  const targetIndex = direction === 'up' ? index - 1 : index + 1
+  if (targetIndex < 0 || targetIndex >= segments.length) {
+    return segments
+  }
+
+  return reorderSegments(segments, segmentId, segments[targetIndex]?.id ?? segmentId)
 }
 
 function App() {
-  const [draft, setDraft] = useState<DraftState>(() => {
-    const storedDraft = loadDraft()
-    return storedDraft ?? createDefaultDraft()
-  })
+  const [draft, setDraft] = useState<MapDraft>(() => normalizeDraft(loadDraft() ?? createDefaultDraft()))
   const [isGenerating, setIsGenerating] = useState(false)
-  const [width, setWidth] = useState(() => Math.min(window.innerWidth - 48, INITIAL_WIDTH))
-  const [isMapFullscreen, setIsMapFullscreen] = useState(false)
-
-  useEffect(() => {
-    const nextWidth = Math.min(window.innerWidth - 48, INITIAL_WIDTH)
-    setWidth(nextWidth)
-
-    const handleResize = () => {
-      setWidth(Math.min(window.innerWidth - 48, INITIAL_WIDTH))
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const [presentation, setPresentation] = useState<PresentationState>({
+    isOpen: false,
+    index: 0,
+    isPlaying: false,
+    startedAt: null,
+  })
 
   useEffect(() => {
     saveDraft(draft)
   }, [draft])
 
+  const activeIndex = getActiveIndex(draft.segments, draft.activeSegmentId)
+  const activeSegment = draft.segments[activeIndex] ?? null
   const hasSegments = draft.segments.length > 0
-  const activeIndex = Math.min(draft.activeIndex, Math.max(draft.segments.length - 1, 0))
-  const currentPresentationIndex = Math.min(
-    draft.presentation.currentIndex,
-    Math.max(draft.segments.length - 1, 0),
+
+  const handleSelectSegment = (segmentId: string) => {
+    const selectedIndex = draft.segments.findIndex((segment) => segment.id === segmentId)
+    if (selectedIndex < 0) {
+      return
+    }
+
+    setDraft((current) => ({ ...current, activeSegmentId: segmentId }))
+
+    if (presentation.isOpen) {
+      setPresentation((current) => ({
+        ...current,
+        index: selectedIndex,
+      }))
+    }
+  }
+
+  let view = (
+    <ClockRail
+      topic={draft.topic}
+      segments={draft.segments}
+      activeSegmentId={draft.activeSegmentId}
+      onSelectSegment={handleSelectSegment}
+    />
   )
 
-  const characterCount = useMemo(() => draft.rawText.length, [draft.rawText])
+  if (draft.layoutMode === 'grid') {
+    view = (
+      <GridView
+        topic={draft.topic}
+        segments={draft.segments}
+        activeSegmentId={draft.activeSegmentId}
+        onSelectSegment={handleSelectSegment}
+      />
+    )
+  } else if (draft.layoutMode === 'linear') {
+    view = (
+      <LinearView
+        topic={draft.topic}
+        segments={draft.segments}
+        activeSegmentId={draft.activeSegmentId}
+        onSelectSegment={handleSelectSegment}
+      />
+    )
+  }
 
   const handleGenerate = () => {
-    if (!draft.rawText.trim()) {
+    const source = draft.rawText.trim()
+    if (!source) {
       return
     }
 
     setIsGenerating(true)
 
     window.setTimeout(() => {
-      const generatedSegments = buildSegments(draft.rawText)
-      const nextTitle = draft.title || DEFAULT_TITLE
-      const nextSubtitle = draft.subtitle || DEFAULT_SUBTITLE
+      const generated = createSegments(source)
 
-      setDraft((current) => ({
+      setDraft((current) =>
+        normalizeDraft({
+          ...current,
+          topic: current.topic.trim() ? current.topic : guessTopic(source, DEFAULT_TOPIC),
+          segments: generated,
+          activeSegmentId: generated[0]?.id ?? null,
+        }),
+      )
+
+      setPresentation((current) => ({
         ...current,
-        title: nextTitle,
-        subtitle: nextSubtitle,
-        segments: generatedSegments,
-        activeIndex: 0,
-        presentation: {
-          ...current.presentation,
-          isOpen: false,
-          currentIndex: 0,
-        },
+        isOpen: false,
+        index: 0,
+        isPlaying: false,
+        startedAt: null,
       }))
 
       setIsGenerating(false)
-    }, 250)
+    }, 180)
   }
 
   const handleReset = () => {
     clearDraft()
     setDraft(createDefaultDraft())
+    setPresentation({
+      isOpen: false,
+      index: 0,
+      isPlaying: false,
+      startedAt: null,
+    })
+    setIsGenerating(false)
   }
 
   const handleOpenPresentation = () => {
@@ -151,221 +238,174 @@ function App() {
       return
     }
 
-    setDraft((current) => ({
-      ...current,
-      presentation: {
-        ...current.presentation,
-        isOpen: true,
-        currentIndex: current.activeIndex,
-      },
-    }))
+    setPresentation({
+      isOpen: true,
+      index: activeIndex,
+      isPlaying: false,
+      startedAt: Date.now(),
+    })
   }
 
   const handleClosePresentation = () => {
-    setDraft((current) => ({
+    setPresentation((current) => ({
       ...current,
-      presentation: {
-        ...current.presentation,
-        isOpen: false,
-      },
+      isOpen: false,
+      isPlaying: false,
     }))
   }
 
   const handlePrevious = () => {
-    setDraft((current) => {
-      const nextIndex = Math.max(current.presentation.currentIndex - 1, 0)
+    setPresentation((current) => {
+      const baseIndex = getActiveIndex(draft.segments, draft.activeSegmentId)
+      const nextIndex = Math.max(0, baseIndex - 1)
+      const nextSegment = draft.segments[nextIndex]
+
+      if (nextSegment) {
+        setDraft((draftState) => ({
+          ...draftState,
+          activeSegmentId: nextSegment.id,
+        }))
+      }
+
       return {
         ...current,
-        presentation: {
-          ...current.presentation,
-          currentIndex: nextIndex,
-        },
-        activeIndex: nextIndex,
+        index: nextIndex,
       }
     })
   }
 
   const handleNext = () => {
-    setDraft((current) => {
-      const nextIndex = Math.min(current.presentation.currentIndex + 1, current.segments.length - 1)
-      return {
-        ...current,
-        presentation: {
-          ...current.presentation,
-          currentIndex: nextIndex,
-        },
-        activeIndex: nextIndex,
+    setPresentation((current) => {
+      const lastIndex = Math.max(0, draft.segments.length - 1)
+      const baseIndex = getActiveIndex(draft.segments, draft.activeSegmentId)
+      const nextIndex = Math.min(lastIndex, baseIndex + 1)
+      const nextSegment = draft.segments[nextIndex]
+
+      if (nextSegment) {
+        setDraft((draftState) => ({
+          ...draftState,
+          activeSegmentId: nextSegment.id,
+        }))
       }
-    })
-  }
-
-  const handleSegmentSelect = (index: number) => {
-    setDraft((current) => ({
-      ...current,
-      activeIndex: index,
-      presentation: {
-        ...current.presentation,
-        currentIndex: index,
-      },
-    }))
-  }
-
-  const handleTitleChange = (value: string) => {
-    setDraft((current) => ({ ...current, title: value }))
-  }
-
-  const handleSubtitleChange = (value: string) => {
-    setDraft((current) => ({ ...current, subtitle: value }))
-  }
-
-  const handleSegmentKeywordChange = (index: number, value: string) => {
-    setDraft((current) => ({
-      ...current,
-      segments: current.segments.map((segment, segmentIndex) =>
-        segmentIndex === index ? { ...segment, keyword: value } : segment,
-      ),
-    }))
-  }
-
-  const handleSegmentTextChange = (index: number, value: string) => {
-    setDraft((current) => ({
-      ...current,
-      segments: current.segments.map((segment, segmentIndex) =>
-        segmentIndex === index
-          ? {
-              ...segment,
-              text: value,
-              preview: createPreview(value),
-            }
-          : segment,
-      ),
-    }))
-  }
-
-  const handleCycleIcon = (index: number) => {
-    setDraft((current) => ({
-      ...current,
-      segments: current.segments.map((segment, segmentIndex) => {
-        if (segmentIndex !== index) {
-          return segment
-        }
-
-        const currentIconIndex = ICONS.indexOf(segment.icon)
-        const nextIcon = ICONS[(currentIconIndex + 1) % ICONS.length] ?? ICONS[0]
-
-        return {
-          ...segment,
-          icon: nextIcon,
-        }
-      }),
-    }))
-  }
-
-  const reindexSegments = (segments: Segment[]) =>
-    segments.map((segment, index) => ({
-      ...segment,
-      id: index + 1,
-      keyword: segment.keyword || `Card ${index + 1}`,
-    }))
-
-  const handleAddSegment = () => {
-    setDraft((current) => {
-      const nextSegments = reindexSegments([...current.segments, makeEmptySegment(current.segments.length + 1)])
-      return {
-        ...current,
-        segments: nextSegments,
-        activeIndex: nextSegments.length - 1,
-        presentation: {
-          ...current.presentation,
-          currentIndex: nextSegments.length - 1,
-        },
-      }
-    })
-  }
-
-  const handleRemoveSegment = (index: number) => {
-    setDraft((current) => {
-      const nextSegments = current.segments.filter((_, segmentIndex) => segmentIndex !== index)
-      const reindexed = reindexSegments(nextSegments)
-      const nextActiveIndex = Math.max(0, Math.min(index, reindexed.length - 1))
 
       return {
         ...current,
-        segments: reindexed,
-        activeIndex: nextActiveIndex,
-        presentation: {
-          ...current.presentation,
-          currentIndex: nextActiveIndex,
-        },
+        index: nextIndex,
       }
     })
-  }
-
-  const handleToggleFullscreen = () => {
-    setIsMapFullscreen((current) => !current)
-  }
-
-  const handleExitMapFullscreen = () => {
-    setIsMapFullscreen(false)
   }
 
   return (
     <AppShell>
-      <TopBar onOpenPresentation={handleOpenPresentation} onReset={handleReset} canPresent={hasSegments} />
+      <TopBar
+        layoutMode={draft.layoutMode}
+        canPresent={hasSegments}
+        onLayoutChange={(layoutMode) => setDraft((current) => ({ ...current, layoutMode }))}
+        onNewMap={handleReset}
+        onPresent={handleOpenPresentation}
+      />
 
-      <main className={`app-layout ${isMapFullscreen ? 'app-layout--map-fullscreen' : ''}`}>
-        {!isMapFullscreen ? (
-          <section className="app-layout__left">
-            <InputPanel
-              value={draft.rawText}
-              onChange={(value) => setDraft((current) => ({ ...current, rawText: value }))}
-              onGenerate={handleGenerate}
-              onReset={handleReset}
-              isGenerating={isGenerating}
-              characterCount={characterCount}
-            />
-
-            <EditorPanel
-              title={draft.title}
-              subtitle={draft.subtitle}
-              segments={draft.segments}
-              activeIndex={activeIndex}
-              onTitleChange={handleTitleChange}
-              onSubtitleChange={handleSubtitleChange}
-              onSegmentKeywordChange={handleSegmentKeywordChange}
-              onSegmentTextChange={handleSegmentTextChange}
-              onCycleIcon={handleCycleIcon}
-            />
-          </section>
-        ) : null}
-
-        <section className={`app-layout__right ${isMapFullscreen ? 'app-layout__right--fullscreen' : ''}`}>
-          <ClockRail
-            title={draft.title}
-            subtitle={draft.subtitle}
-            segments={draft.segments}
-            activeIndex={activeIndex}
-            onSegmentSelect={handleSegmentSelect}
-            onSegmentRemove={handleRemoveSegment}
-            onAddSegment={handleAddSegment}
-            onToggleFullscreen={handleToggleFullscreen}
-            onExitFullscreen={handleExitMapFullscreen}
-            isFullscreen={isMapFullscreen}
-            showRemoveControl={draft.presentation.isOpen}
-            width={width}
+      <main className="workspace">
+        <aside className="workspace__sidebar">
+          <InputPanel
+            rawText={draft.rawText}
+            charCount={draft.rawText.length}
+            isGenerating={isGenerating}
+            hasSegments={hasSegments}
+            onRawTextChange={(value) => setDraft((current) => ({ ...current, rawText: value }))}
+            onGenerate={handleGenerate}
+            onReset={handleReset}
           />
+
+          <EditorPanel
+            topic={draft.topic}
+            segments={draft.segments}
+            activeSegmentId={draft.activeSegmentId}
+            onTopicChange={(topic) => setDraft((current) => ({ ...current, topic }))}
+            onSelectSegment={handleSelectSegment}
+            onSegmentIconSelect={(segmentId, icon) =>
+              setDraft((current) => ({
+                ...current,
+                segments: current.segments.map((segment) =>
+                  segment.id === segmentId
+                    ? {
+                        ...segment,
+                        icon,
+                      }
+                    : segment,
+                ),
+              }))
+            }
+            onReorderSegment={(draggedSegmentId, targetSegmentId) =>
+              setDraft((current) => ({
+                ...current,
+                segments: reorderSegments(current.segments, draggedSegmentId, targetSegmentId),
+              }))
+            }
+            onMoveSegment={(segmentId, direction) =>
+              setDraft((current) => ({
+                ...current,
+                segments: moveSegment(current.segments, segmentId, direction),
+              }))
+            }
+            onSegmentKeywordChange={(segmentId, keyword) =>
+              setDraft((current) => ({
+                ...current,
+                segments: current.segments.map((segment) =>
+                  segment.id === segmentId ? { ...segment, keyword: keyword.trim() || segment.keyword } : segment,
+                ),
+              }))
+            }
+            onSegmentTextChange={(segmentId, text) =>
+              setDraft((current) => ({
+                ...current,
+                segments: current.segments.map((segment) =>
+                  segment.id === segmentId
+                    ? {
+                        ...segment,
+                        text,
+                        preview: createPreview(text),
+                      }
+                    : segment,
+                ),
+              }))
+            }
+          />
+        </aside>
+
+        <section className="workspace__canvas">
+          {hasSegments ? (
+            view
+          ) : (
+            <div className="empty-canvas glass-panel">
+              <p className="panel-kicker">ClockRail MVP+</p>
+              <h2>Generate your first memory map</h2>
+              <p>
+                Paste a speech, lecture, or project notes on the left. The app will segment it into 4-12 nodes and
+                render Clock, Grid, and Linear views in sync.
+              </p>
+            </div>
+          )}
+
+          <div className="status-rail glass-panel">
+            <span>{hasSegments ? `Segments: ${draft.segments.length}` : 'No segments generated'}</span>
+            <span>{activeSegment ? `Active: ${activeSegment.keyword}` : 'Select a segment to edit'}</span>
+            <span>Layout: {draft.layoutMode}</span>
+          </div>
         </section>
       </main>
 
       <PresentationMode
-        isOpen={draft.presentation.isOpen}
-        title={draft.title}
-        subtitle={draft.subtitle}
+        isOpen={presentation.isOpen}
+        topic={draft.topic}
+        layoutMode={draft.layoutMode}
         segments={draft.segments}
-        currentIndex={currentPresentationIndex}
+        activeSegmentId={draft.activeSegmentId}
+        currentIndex={presentation.isOpen ? activeIndex : presentation.index}
         onClose={handleClosePresentation}
-        onPrevious={handlePrevious}
+        onSelectSegment={handleSelectSegment}
         onNext={handleNext}
+        onPrevious={handlePrevious}
       />
     </AppShell>
   )

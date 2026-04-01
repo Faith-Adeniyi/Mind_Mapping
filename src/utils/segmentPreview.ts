@@ -1,8 +1,9 @@
-export function createPreview(text: string, length = 72) {
-  const trimmed = text.trim()
-  if (trimmed.length <= length) {
-    return trimmed
+export function createPreview(text: string, length = 84) {
+  const normalized = text.replace(/\s+/g, ' ').trim()
+
+  if (normalized.length <= length) {
+    return normalized
   }
 
-  return `${trimmed.slice(0, length).trim()}…`
+  return `${normalized.slice(0, length).trimEnd()}...`
 }

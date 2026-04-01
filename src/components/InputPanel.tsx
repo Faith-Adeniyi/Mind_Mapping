@@ -1,44 +1,51 @@
 type InputPanelProps = {
-  value: string
-  onChange: (value: string) => void
+  rawText: string
+  charCount: number
+  isGenerating: boolean
+  hasSegments: boolean
+  onRawTextChange: (value: string) => void
   onGenerate: () => void
   onReset: () => void
-  isGenerating: boolean
-  characterCount: number
 }
 
 export function InputPanel({
-  value,
-  onChange,
+  rawText,
+  charCount,
+  isGenerating,
+  hasSegments,
+  onRawTextChange,
   onGenerate,
   onReset,
-  isGenerating,
-  characterCount,
 }: InputPanelProps) {
   return (
-    <section className="panel">
-      <div className="panel__header">
-        <div>
-          <p className="panel__eyebrow">Content input</p>
-          <h2>Paste your speech, lecture, or project notes</h2>
-        </div>
-        <p className="panel__meta">{characterCount} characters</p>
+    <section className="workspace-panel glass-panel">
+      <div className="panel-head">
+        <p className="panel-kicker">Editor</p>
+        <h2>Source Material</h2>
       </div>
 
-      <textarea
-        className="panel__textarea"
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="Paste your speech, presentation, or lecture notes here..."
-        spellCheck="false"
-      />
+      <label className="field">
+        <span className="field__label">Paste speech, lecture, or project notes</span>
+        <textarea
+          className="field__control field__control--textarea"
+          value={rawText}
+          onChange={(event) => onRawTextChange(event.target.value)}
+          placeholder="Paste long-form content. Generation will split it into 4-12 memory segments."
+          spellCheck={false}
+        />
+      </label>
 
-      <div className="panel__actions">
-        <button type="button" className="ghost-btn" onClick={onReset}>
+      <div className="panel-row">
+        <span className="meta-text">{charCount.toLocaleString()} characters</span>
+        <span className="meta-text">{hasSegments ? 'Map generated' : 'Awaiting generation'}</span>
+      </div>
+
+      <div className="panel-actions">
+        <button type="button" className="ghost-button" onClick={onReset}>
           Reset
         </button>
-        <button type="button" className="primary-btn" onClick={onGenerate} disabled={isGenerating}>
-          {isGenerating ? 'Generating…' : 'Generate ClockRail'}
+        <button type="button" className="primary-button" onClick={onGenerate} disabled={isGenerating || !rawText.trim()}>
+          {isGenerating ? 'Generating...' : 'Generate ClockRail'}
         </button>
       </div>
     </section>

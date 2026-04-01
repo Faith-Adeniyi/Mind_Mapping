@@ -1,89 +1,153 @@
-import type { Segment } from '../types'
+import { useEffect, useMemo } from 'react'
+import type { LayoutMode, Segment } from '../types'
+import { ClockRail } from './ClockRail'
+import { GridView } from './GridView'
+import { IconGlyph } from './IconGlyph'
+import { LinearView } from './LinearView'
 
 type PresentationModeProps = {
   isOpen: boolean
-  title: string
-  subtitle: string
+  topic: string
+  layoutMode: LayoutMode
   segments: Segment[]
+  activeSegmentId: string | null
   currentIndex: number
   onClose: () => void
-  onPrevious: () => void
+  onSelectSegment: (segmentId: string) => void
   onNext: () => void
+  onPrevious: () => void
 }
 
 export function PresentationMode({
   isOpen,
-  title,
-  subtitle,
+  topic,
+  layoutMode,
   segments,
+  activeSegmentId,
   currentIndex,
   onClose,
-  onPrevious,
+  onSelectSegment,
   onNext,
+  onPrevious,
 }: PresentationModeProps) {
-  const activeSegment = segments[currentIndex]
+  useEffect(() => {
+    if (!isOpen) {
+      return undefined
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose()
+        return
+      }
+
+      if (event.key === 'ArrowRight' || event.key === ' ') {
+        event.preventDefault()
+        onNext()
+        return
+      }
+
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault()
+        onPrevious()
+      }
+    }
+
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [isOpen, onClose, onNext, onPrevious])
+
+  const content = useMemo(() => {
+    if (layoutMode === 'grid') {
+      return (
+        <GridView
+          topic={topic}
+          segments={segments}
+          activeSegmentId={activeSegmentId}
+          onSelectSegment={onSelectSegment}
+        />
+      )
+    }
+
+    if (layoutMode === 'linear') {
+      return (
+        <LinearView
+          topic={topic}
+          segments={segments}
+          activeSegmentId={activeSegmentId}
+          onSelectSegment={onSelectSegment}
+        />
+      )
+    }
+
+    return (
+      <ClockRail
+        topic={topic}
+        segments={segments}
+        activeSegmentId={activeSegmentId}
+        onSelectSegment={onSelectSegment}
+      />
+    )
+  }, [activeSegmentId, layoutMode, onSelectSegment, segments, topic])
 
   if (!isOpen) {
     return null
   }
 
-  return (
-    <div className="presentation-overlay" role="dialog" aria-modal="true" aria-label="Presentation mode">
-      <div className="presentation-shell">
-        <header className="presentation-header">
-          <div>
-            <p className="panel__eyebrow">Presentation mode</p>
-            <h2>{title || 'Main Topic'}</h2>
-            <p className="presentation-subtitle">{subtitle || 'Use the memory rail to present confidently.'}</p>
-          </div>
+  const activeSegment = segments[currentIndex] ?? null
+  const progress = segments.length > 0 ? ((currentIndex + 1) / segments.length) * 100 : 0
 
-          <button type="button" className="ghost-btn" onClick={onClose}>
-            Exit
-          </button>
+  return (
+    <div className="presentation-overlay" role="dialog" aria-modal="true" aria-label="Presentation Mode">
+      <div className="presentation-shell glass-panel">
+        <header className="presentation-shell__head">
+          <div>
+            <p className="panel-kicker">Presentation Mode</p>
+            <h2>{topic || 'Untitled Map'}</h2>
+          </div>
+          <div className="presentation-shell__actions">
+            <span className="hotkey-pill">Left / Right / Space / Esc</span>
+            <button type="button" className="ghost-button" onClick={onClose}>
+              Exit
+            </button>
+          </div>
         </header>
 
-        <main className="presentation-body">
-          <div className="presentation-preview">
-            <div className="presentation-preview__core">
-              <span className="presentation-preview__icon">{activeSegment?.icon ?? '🕐'}</span>
-              <strong>{activeSegment?.keyword ?? 'Ready'}</strong>
-              <p>
-                {activeSegment?.text ??
-                  'Click next to begin moving through your ClockRail memory map.'}
-              </p>
-            </div>
+        <div className="presentation-shell__body">{content}</div>
 
-            <div className="presentation-progress">
-              <div
-                className="presentation-progress__bar"
-                style={{
-                  width:
-                    segments.length > 0
-                      ? `${((currentIndex + 1) / segments.length) * 100}%`
-                      : '0%',
-                }}
-              />
-            </div>
+        <footer className="presentation-shell__foot">
+          <div className="progress-track" aria-hidden="true">
+            <span className="progress-track__fill" style={{ width: `${progress}%` }} />
+          </div>
 
-            <p className="presentation-counter">
+          <div className="presentation-shell__meta">
+            <p>
               {segments.length > 0 ? `${currentIndex + 1} / ${segments.length}` : '0 / 0'}
             </p>
+            <div className="presentation-shell__nav">
+              <button type="button" className="ghost-button" onClick={onPrevious} disabled={currentIndex <= 0}>
+                Previous
+              </button>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={onNext}
+                disabled={currentIndex >= segments.length - 1}
+              >
+                Next
+              </button>
+            </div>
           </div>
 
-          <div className="presentation-controls">
-            <button type="button" className="ghost-btn" onClick={onPrevious} disabled={currentIndex <= 0}>
-              Previous
-            </button>
-            <button
-              type="button"
-              className="primary-btn"
-              onClick={onNext}
-              disabled={currentIndex >= segments.length - 1}
-            >
-              Next
-            </button>
-          </div>
-        </main>
+          {activeSegment ? (
+            <div className={`focus-card tone-${activeSegment.tone}`}>
+              <IconGlyph value={activeSegment.icon} className="focus-card__icon" />
+              <strong>{activeSegment.keyword}</strong>
+              <p>{activeSegment.text}</p>
+            </div>
+          ) : null}
+        </footer>
       </div>
     </div>
   )

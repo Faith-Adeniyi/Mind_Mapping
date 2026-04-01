@@ -1,16 +1,25 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap');
+
 :root {
   color-scheme: dark;
-  --bg: #07111f;
-  --panel: rgba(10, 18, 34, 0.82);
-  --panel-strong: rgba(12, 22, 41, 0.96);
-  --line: rgba(148, 163, 184, 0.16);
-  --text: #e5eefc;
-  --muted: #97a6c6;
-  --indigo: #6366f1;
-  --pink: #ec4899;
-  --amber: #f59e0b;
-  --emerald: #10b981;
-  --cyan: #06b6d4;
+  --background: #0a0e1a;
+  --surface: rgba(20, 26, 40, 0.72);
+  --surface-low: rgba(14, 19, 30, 0.82);
+  --surface-high: rgba(31, 38, 56, 0.88);
+  --surface-bright: rgba(37, 44, 63, 0.94);
+  --outline-ghost: rgba(113, 117, 132, 0.18);
+  --text-main: #e2e4f6;
+  --text-soft: #a7aabb;
+  --primary: #69daff;
+  --primary-strong: #00cffc;
+  --secondary: #b884ff;
+  --tertiary: #ff68a8;
+  --error: #ff6e84;
+  --radius-xl: 1.5rem;
+  --radius-lg: 1rem;
+  --radius-pill: 9999px;
+  --ambient-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -25,38 +34,33 @@ html,
 body,
 #root {
   min-height: 100%;
-  margin: 0;
 }
 
 body {
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--text-main);
   background:
-    radial-gradient(circle at top left, rgba(99, 102, 241, 0.22), transparent 28%),
-    radial-gradient(circle at top right, rgba(236, 72, 153, 0.18), transparent 26%),
-    radial-gradient(circle at center, rgba(6, 182, 212, 0.1), transparent 35%),
-    var(--bg);
-  color: var(--text);
+    radial-gradient(circle at 12% 8%, rgba(105, 218, 255, 0.12), transparent 28%),
+    radial-gradient(circle at 88% 14%, rgba(184, 132, 255, 0.1), transparent 24%),
+    radial-gradient(circle at 50% 100%, rgba(255, 104, 168, 0.07), transparent 30%),
+    linear-gradient(180deg, #080d18 0%, var(--background) 60%, #060a14 100%);
 }
 
 button,
 input,
 textarea {
   font: inherit;
+  color: inherit;
 }
 
 button {
-  border: 0;
   cursor: pointer;
-  color: inherit;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
-
-img,
-svg {
-  display: block;
-  max-width: 100%;
+h1,
+h2,
+h3,
+p {
+  margin: 0;
 }

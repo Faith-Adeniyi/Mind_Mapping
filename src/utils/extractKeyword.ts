@@ -1,74 +1,62 @@
-const stopWords = new Set([
-  'the',
+const STOP_WORDS = new Set([
+  'a',
+  'an',
   'and',
-  'for',
-  'with',
-  'that',
-  'this',
-  'from',
-  'they',
-  'have',
-  'were',
-  'been',
-  'their',
-  'would',
-  'there',
-  'could',
-  'should',
-  'about',
-  'into',
-  'when',
-  'where',
-  'which',
-  'what',
-  'your',
-  'our',
-  'you',
   'are',
-  'was',
-  'will',
-  'can',
-  'may',
-  'not',
-  'but',
-  'all',
-  'any',
-  'some',
-  'more',
-  'most',
-  'many',
-  'much',
-  'over',
-  'under',
-  'very',
-  'after',
-  'before',
-  'first',
-  'last',
-  'then',
-  'than',
+  'as',
+  'at',
+  'be',
+  'because',
+  'by',
+  'for',
+  'from',
+  'has',
+  'have',
+  'if',
+  'in',
+  'into',
+  'is',
+  'it',
+  'its',
+  'of',
+  'on',
+  'or',
+  'our',
+  'so',
+  'that',
+  'the',
+  'their',
+  'there',
+  'these',
+  'this',
+  'those',
+  'to',
+  'we',
+  'with',
+  'you',
+  'your',
 ])
+
+function toTitleCase(word: string) {
+  return `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`
+}
 
 export function extractKeyword(text: string) {
   const words = text
-    .replace(/[^a-zA-Z0-9\s]/g, ' ')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
     .split(/\s+/)
-    .map((word) => word.trim())
-    .filter((word) => word.length > 3)
+    .filter(Boolean)
 
-  const significantWords = words.filter((word) => !stopWords.has(word.toLowerCase()))
+  const important = words.filter((word) => word.length > 2 && !STOP_WORDS.has(word))
+  const source = important.length > 0 ? important : words
 
-  if (significantWords.length >= 2) {
-    return significantWords.slice(0, 2).join(' ')
+  if (source.length === 0) {
+    return 'Untitled Segment'
   }
 
-  if (significantWords.length === 1) {
-    return significantWords[0].slice(0, 18)
-  }
-
-  if (words.length > 0) {
-    return words[0].slice(0, 18)
-  }
-
-  return 'Topic'
+  return source
+    .slice(0, 3)
+    .map((word) => toTitleCase(word))
+    .join(' ')
 }

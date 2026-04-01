@@ -1,17 +1,23 @@
-import { getFallbackIcon, iconLibrary } from '../data/iconLibrary'
+import { ICON_BY_TERM, getIconByIndex } from '../data/iconDefaults'
+
+function hashToIndex(text: string) {
+  let hash = 0
+
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (hash * 31 + text.charCodeAt(index)) >>> 0
+  }
+
+  return hash
+}
 
 export function assignIcon(text: string) {
-  const lowerText = text.toLowerCase()
+  const normalized = text.toLowerCase()
 
-  for (const [keyword, icon] of Object.entries(iconLibrary)) {
-    if (keyword === 'default') {
-      continue
-    }
-
-    if (lowerText.includes(keyword)) {
+  for (const [term, icon] of Object.entries(ICON_BY_TERM)) {
+    if (normalized.includes(term)) {
       return icon
     }
   }
 
-  return getFallbackIcon(text)
+  return getIconByIndex(hashToIndex(normalized))
 }
