@@ -3,6 +3,7 @@ type InputPanelProps = {
   charCount: number
   isGenerating: boolean
   hasSegments: boolean
+  statusNote?: string | null
   onRawTextChange: (value: string) => void
   onGenerate: () => void
   onReset: () => void
@@ -13,10 +14,15 @@ export function InputPanel({
   charCount,
   isGenerating,
   hasSegments,
+  statusNote,
   onRawTextChange,
   onGenerate,
   onReset,
 }: InputPanelProps) {
+  const activityLabel = isGenerating
+    ? (statusNote ?? 'Analyzing key points...')
+    : (statusNote ?? (hasSegments ? 'Map generated' : 'Awaiting generation'))
+
   return (
     <section className="workspace-panel glass-panel">
       <div className="panel-head">
@@ -37,7 +43,7 @@ export function InputPanel({
 
       <div className="panel-row">
         <span className="meta-text">{charCount.toLocaleString()} characters</span>
-        <span className="meta-text">{hasSegments ? 'Map generated' : 'Awaiting generation'}</span>
+        <span className="meta-text">{activityLabel}</span>
       </div>
 
       <div className="panel-actions">

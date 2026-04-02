@@ -9,11 +9,10 @@ import { LinearView } from './components/LinearView'
 import { PresentationMode } from './components/PresentationMode'
 import { TopBar } from './components/TopBar'
 import { TONE_SEQUENCE } from './data/iconDefaults'
-import type { MapDraft, PresentationState, Segment } from './types'
+import type { GeneratedSegmentDraft, MapDraft, PresentationState, Segment } from './types'
+import { analyzeMapText } from './utils/analyzeMap'
 import { assignIcon } from './utils/assignIcon'
-import { extractKeyword } from './utils/extractKeyword'
 import { createPreview } from './utils/segmentPreview'
-import { segmentText } from './utils/segmentText'
 import { clearDraft, loadDraft, saveDraft } from './utils/storage'
 
 const DEFAULT_TOPIC = 'Project Presentation'
@@ -62,19 +61,14 @@ function guessTopic(rawText: string, fallbackTopic: string) {
   return firstLine.length > 64 ? `${firstLine.slice(0, 61).trimEnd()}...` : firstLine
 }
 
-function createSegments(rawText: string) {
-  const chunks = segmentText(rawText, {
-    minSegments: MIN_SEGMENTS,
-    maxSegments: MAX_SEGMENTS,
-  })
-
-  return chunks.map((chunk, index): Segment => ({
+function createSegments(drafts: GeneratedSegmentDraft[]) {
+  return drafts.map((draft, index): Segment => ({
     id: `segment-${index + 1}`,
     order: index + 1,
-    text: chunk,
-    keyword: extractKeyword(chunk),
-    icon: assignIcon(chunk),
-    preview: createPreview(chunk),
+    text: draft.text,
+    keyword: draft.keyword,
+    icon: assignIcon(draft.text),
+    preview: createPreview(draft.text),
     tone: TONE_SEQUENCE[index % TONE_SEQUENCE.length] ?? 'primary',
   }))
 }
@@ -129,6 +123,8 @@ function moveSegment(segments: Segment[], segmentId: string, direction: 'up' | '
 function App() {
   const [draft, setDraft] = useState<MapDraft>(() => normalizeDraft(loadDraft() ?? createDefaultDraft()))
   const [isGenerating, setIsGenerating] = useState(false)
+  const [generationStatus, setGenerationStatus] = useState<string | null>(null)
+  const [generationNote, setGenerationNote] = useState<string | null>(null)
   const [presentation, setPresentation] = useState<PresentationState>({
     isOpen: false,
     index: 0,
@@ -196,29 +192,44 @@ function App() {
     }
 
     setIsGenerating(true)
+    setGenerationStatus('Analyzing key points...')
+    setGenerationNote(null)
 
-    window.setTimeout(() => {
-      const generated = createSegments(source)
+    void (async () => {
+      try {
+        const analysis = await analyzeMapText(source, {
+          minSegments: MIN_SEGMENTS,
+          maxSegments: MAX_SEGMENTS,
+          onStatusChange: setGenerationStatus,
+        })
 
-      setDraft((current) =>
-        normalizeDraft({
+        const generated = createSegments(analysis.segments)
+
+        setDraft((current) =>
+          normalizeDraft({
+            ...current,
+            topic: current.topic.trim() ? current.topic : guessTopic(source, DEFAULT_TOPIC),
+            segments: generated,
+            activeSegmentId: generated[0]?.id ?? null,
+          }),
+        )
+
+        setPresentation((current) => ({
           ...current,
-          topic: current.topic.trim() ? current.topic : guessTopic(source, DEFAULT_TOPIC),
-          segments: generated,
-          activeSegmentId: generated[0]?.id ?? null,
-        }),
-      )
+          isOpen: false,
+          index: 0,
+          isPlaying: false,
+          startedAt: null,
+        }))
 
-      setPresentation((current) => ({
-        ...current,
-        isOpen: false,
-        index: 0,
-        isPlaying: false,
-        startedAt: null,
-      }))
-
-      setIsGenerating(false)
-    }, 180)
+        setGenerationNote(analysis.note ?? 'Map generated')
+      } catch {
+        setGenerationNote('Generation failed. Please try again.')
+      } finally {
+        setIsGenerating(false)
+        setGenerationStatus(null)
+      }
+    })()
   }
 
   const handleReset = () => {
@@ -231,6 +242,8 @@ function App() {
       startedAt: null,
     })
     setIsGenerating(false)
+    setGenerationStatus(null)
+    setGenerationNote(null)
   }
 
   const handleOpenPresentation = () => {
@@ -312,6 +325,7 @@ function App() {
             charCount={draft.rawText.length}
             isGenerating={isGenerating}
             hasSegments={hasSegments}
+            statusNote={isGenerating ? generationStatus : generationNote}
             onRawTextChange={(value) => setDraft((current) => ({ ...current, rawText: value }))}
             onGenerate={handleGenerate}
             onReset={handleReset}

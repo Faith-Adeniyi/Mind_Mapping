@@ -1,5 +1,14 @@
 # React + TypeScript + Vite
 
+## Environment Variables
+
+This project includes a serverless analysis endpoint at `/api/analyze-map` for semantic segment extraction.
+
+- `OPENAI_API_KEY` (required in Vercel/local server env)
+- `OPENAI_MODEL` (optional, defaults to `gpt-4o-mini`)
+
+Use `.env.example` as a template.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
