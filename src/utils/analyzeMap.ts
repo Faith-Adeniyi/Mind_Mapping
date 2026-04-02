@@ -30,7 +30,9 @@ async function requestRemoteAnalysis(payload: AnalyzeMapRequestPayload): Promise
     })
 
     if (!response.ok) {
-      throw new Error(`Analysis endpoint failed: ${response.status}`)
+      const errorPayload = (await response.json().catch(() => null)) as { error?: string } | null
+      const errorMessage = errorPayload?.error ? ` (${errorPayload.error})` : ''
+      throw new Error(`Analysis endpoint failed: ${response.status}${errorMessage}`)
     }
 
     const data = (await response.json()) as Partial<AnalyzeMapResponsePayload>
@@ -42,6 +44,7 @@ async function requestRemoteAnalysis(payload: AnalyzeMapRequestPayload): Promise
     return {
       source: data.source === 'local' ? 'local' : 'llm',
       segments: data.segments,
+      fallbackReason: typeof data.fallbackReason === 'string' ? data.fallbackReason : undefined,
     }
   } finally {
     window.clearTimeout(timeoutId)
@@ -65,17 +68,20 @@ export async function analyzeMapText(text: string, options: AnalyzeMapOptions): 
     return {
       source: remote.source,
       segments: normalized,
-      note: remote.source === 'local' ? 'Generated with local fallback analysis.' : undefined,
+      note: remote.source === 'local'
+        ? (remote.fallbackReason ?? 'Generated with local fallback analysis.')
+        : undefined,
     }
-  } catch {
+  } catch (error) {
     onStatusChange?.('Using local fallback analysis...')
 
     const local = localAnalyzeMapText(text, { minSegments, maxSegments })
+    const message = error instanceof Error ? error.message : 'Unknown analysis error'
 
     return {
       source: 'local',
       segments: local,
-      note: 'Generated with local fallback analysis.',
+      note: `Generated with local fallback analysis. ${message}`,
     }
   }
 }

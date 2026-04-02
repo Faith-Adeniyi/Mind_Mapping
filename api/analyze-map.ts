@@ -1,5 +1,5 @@
-import type { AnalyzeMapRequestPayload, GeneratedSegmentDraft } from '../src/types'
-import { localAnalyzeMapText, normalizeGeneratedDrafts } from '../src/utils/mapAnalysisCore'
+import type { AnalyzeMapRequestPayload, GeneratedSegmentDraft } from './_lib/contracts.js'
+import { localAnalyzeMapText, normalizeGeneratedDrafts } from './_lib/mapAnalysisCore.js'
 
 type ServerRequest = {
   method?: string
@@ -192,6 +192,7 @@ export default async function handler(req: ServerRequest, res: ServerResponse) {
     res.status(200).json({
       source: 'local',
       segments: fallback,
+      fallbackReason: 'OpenAI analysis unavailable; local fallback used.',
     })
   }
 }
