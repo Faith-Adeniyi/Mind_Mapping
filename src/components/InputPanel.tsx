@@ -51,7 +51,7 @@ export function InputPanel({
           Reset
         </button>
         <button type="button" className="primary-button" onClick={onGenerate} disabled={isGenerating || !rawText.trim()}>
-          {isGenerating ? 'Generating...' : 'Generate ClockRail'}
+          {isGenerating ? 'Generating...' : 'Generate Mind Map'}
         </button>
       </div>
     </section>

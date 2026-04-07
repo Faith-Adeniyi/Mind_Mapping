@@ -4,8 +4,8 @@
 
 This project includes a serverless analysis endpoint at `/api/analyze-map` for semantic segment extraction.
 
-- `OPENAI_API_KEY` (required in Vercel/local server env)
-- `OPENAI_MODEL` (optional, defaults to `gpt-4o-mini`)
+- `GEMINI_API_KEY` (required in Vercel/local server env)
+- `GEMINI_MODEL` (optional, defaults to `gemini-2.5-flash-lite`)
 
 Use `.env.example` as a template.
 

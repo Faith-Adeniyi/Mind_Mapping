@@ -18,8 +18,20 @@ export function TopBar({ layoutMode, canPresent, onLayoutChange, onNewMap, onPre
   return (
     <header className="topbar glass-panel">
       <div className="topbar__brand">
-        <p className="topbar__logo">ClockRail</p>
-        <p className="topbar__subtitle">Memory Workspace</p>
+        <img
+          src="/brand/allison-icon-64.png"
+          alt=""
+          className="topbar__brand-icon"
+          width={32}
+          height={32}
+          loading="eager"
+          decoding="async"
+          aria-hidden="true"
+        />
+        <div className="topbar__brand-copy">
+          <p className="topbar__logo">Allison Mind Mapping</p>
+          <p className="topbar__subtitle">Memory Workspace</p>
+        </div>
       </div>
 
       <div className="topbar__switcher" role="tablist" aria-label="Visualization Mode">

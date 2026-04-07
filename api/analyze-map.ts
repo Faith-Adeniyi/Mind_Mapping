@@ -12,12 +12,18 @@ type ServerResponse = {
   json: (payload: unknown) => void
 }
 
-type ChatCompletionResponse = {
-  choices?: Array<{
-    message?: {
-      content?: string | null
+type GeminiGenerateContentResponse = {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string
+      }>
     }
+    finishReason?: string
   }>
+  promptFeedback?: {
+    blockReason?: string
+  }
 }
 
 const DEFAULT_MIN_SEGMENTS = 4
@@ -49,13 +55,39 @@ function parseBody(body: unknown): Partial<AnalyzeMapRequestPayload> {
   return {}
 }
 
-function parseSegmentsFromModel(response: ChatCompletionResponse): GeneratedSegmentDraft[] {
-  const content = response.choices?.[0]?.message?.content
-  if (!content) {
-    throw new Error('Model returned empty content')
+function parseJsonObjectText(value: string) {
+  const trimmed = value.trim()
+
+  try {
+    return JSON.parse(trimmed) as { segments?: GeneratedSegmentDraft[] }
+  } catch {
+    const blockMatch = trimmed.match(/```(?:json)?\s*([\s\S]+?)\s*```/i)
+    if (blockMatch?.[1]) {
+      return JSON.parse(blockMatch[1]) as { segments?: GeneratedSegmentDraft[] }
+    }
+    throw new Error('Model returned malformed JSON')
+  }
+}
+
+function parseSegmentsFromGemini(response: GeminiGenerateContentResponse): GeneratedSegmentDraft[] {
+  const blockReason = response.promptFeedback?.blockReason
+  if (blockReason) {
+    throw new Error(`Gemini blocked prompt: ${blockReason}`)
   }
 
-  const parsed = JSON.parse(content) as { segments?: GeneratedSegmentDraft[] }
+  const parts = response.candidates?.[0]?.content?.parts ?? []
+  const content = parts
+    .map((part) => (typeof part.text === 'string' ? part.text : ''))
+    .join('\n')
+    .trim()
+
+  if (!content) {
+    const finishReason = response.candidates?.[0]?.finishReason
+    const reasonSuffix = finishReason ? ` (finishReason: ${finishReason})` : ''
+    throw new Error(`Gemini returned empty content${reasonSuffix}`)
+  }
+
+  const parsed = parseJsonObjectText(content)
   if (!Array.isArray(parsed.segments)) {
     throw new Error('Model response missing segments')
   }
@@ -63,13 +95,10 @@ function parseSegmentsFromModel(response: ChatCompletionResponse): GeneratedSegm
   return parsed.segments
 }
 
-async function requestOpenAiSegments(
-  apiKey: string,
-  payload: AnalyzeMapRequestPayload,
-): Promise<GeneratedSegmentDraft[]> {
-  const model = getEnvVariable('OPENAI_MODEL') || 'gpt-4o-mini'
+async function requestGeminiSegments(apiKey: string, payload: AnalyzeMapRequestPayload): Promise<GeneratedSegmentDraft[]> {
+  const model = getEnvVariable('GEMINI_MODEL') || 'gemini-2.5-flash-lite'
 
-  const systemPrompt = [
+  const instructions = [
     'You convert long-form text into a sequence of meaningful memory-map points.',
     'Return strict JSON with field: segments.',
     'Each segment must include: text and keyword.',
@@ -77,53 +106,47 @@ async function requestOpenAiSegments(
     'Each keyword must be a concise title in 2-5 words, title-cased, no filler, no trailing punctuation.',
     'Avoid generic labels like Introduction, Overview, Summary, Conclusion unless the segment is explicitly about those concepts.',
     'Prefer insight/action/decision-oriented phrasing when possible.',
-  ].join(' ')
+  ]
 
-  const userPrompt = JSON.stringify({
-    text: payload.text,
-    constraints: {
-      minSegments: payload.minSegments,
-      maxSegments: payload.maxSegments,
-      keywordWords: '2-5',
-    },
-  })
+  const prompt = [
+    instructions.join(' '),
+    '',
+    'INPUT:',
+    payload.text,
+  ].join('\n')
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      'x-goog-api-key': apiKey,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model,
-      temperature: 0.2,
-      max_completion_tokens: 1400,
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: prompt }],
+        },
       ],
-      response_format: {
-        type: 'json_schema',
-        json_schema: {
-          name: 'map_analysis',
-          strict: true,
-          schema: {
-            type: 'object',
-            additionalProperties: false,
-            required: ['segments'],
-            properties: {
-              segments: {
-                type: 'array',
-                minItems: payload.minSegments,
-                maxItems: payload.maxSegments,
-                items: {
-                  type: 'object',
-                  additionalProperties: false,
-                  required: ['text', 'keyword'],
-                  properties: {
-                    text: { type: 'string' },
-                    keyword: { type: 'string' },
-                  },
+      generationConfig: {
+        temperature: 0.2,
+        responseMimeType: 'application/json',
+        responseJsonSchema: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['segments'],
+          properties: {
+            segments: {
+              type: 'array',
+              minItems: payload.minSegments,
+              maxItems: payload.maxSegments,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['text', 'keyword'],
+                properties: {
+                  text: { type: 'string' },
+                  keyword: { type: 'string' },
                 },
               },
             },
@@ -135,11 +158,11 @@ async function requestOpenAiSegments(
 
   if (!response.ok) {
     const errorText = await response.text()
-    throw new Error(`OpenAI request failed (${response.status}): ${errorText}`)
+    throw new Error(`Gemini request failed (${response.status}): ${errorText}`)
   }
 
-  const completion = (await response.json()) as ChatCompletionResponse
-  return parseSegmentsFromModel(completion)
+  const completion = (await response.json()) as GeminiGenerateContentResponse
+  return parseSegmentsFromGemini(completion)
 }
 
 export default async function handler(req: ServerRequest, res: ServerResponse) {
@@ -172,14 +195,14 @@ export default async function handler(req: ServerRequest, res: ServerResponse) {
     maxSegments,
   }
 
-  const apiKey = getEnvVariable('OPENAI_API_KEY')
+  const apiKey = getEnvVariable('GEMINI_API_KEY')
   if (!apiKey) {
-    res.status(503).json({ error: 'OPENAI_API_KEY is not configured' })
+    res.status(503).json({ error: 'GEMINI_API_KEY is not configured' })
     return
   }
 
   try {
-    const modelSegments = await requestOpenAiSegments(apiKey, payload)
+    const modelSegments = await requestGeminiSegments(apiKey, payload)
     const normalized = normalizeGeneratedDrafts(modelSegments, { minSegments, maxSegments }, text)
 
     res.status(200).json({
@@ -192,7 +215,7 @@ export default async function handler(req: ServerRequest, res: ServerResponse) {
     res.status(200).json({
       source: 'local',
       segments: fallback,
-      fallbackReason: 'OpenAI analysis unavailable; local fallback used.',
+      fallbackReason: 'Gemini analysis unavailable; local fallback used.',
     })
   }
 }

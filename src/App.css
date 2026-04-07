@@ -75,14 +75,31 @@
 
 .topbar__brand {
   min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.62rem;
+}
+
+.topbar__brand-icon {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.58rem;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 1px rgba(105, 218, 255, 0.24), 0 8px 18px rgba(0, 0, 0, 0.32);
+}
+
+.topbar__brand-copy {
+  min-width: 0;
+  display: grid;
 }
 
 .topbar__logo {
   font-family: 'Manrope', sans-serif;
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.02em;
   color: var(--primary);
-  font-size: 1.25rem;
+  font-size: clamp(1rem, 1.45vw, 1.2rem);
+  line-height: 1.1;
 }
 
 .topbar__subtitle {
@@ -1043,6 +1060,11 @@
   .topbar__actions {
     justify-content: flex-start;
     flex-wrap: wrap;
+  }
+
+  .topbar__brand-icon {
+    width: 1.9rem;
+    height: 1.9rem;
   }
 
   .workspace {
