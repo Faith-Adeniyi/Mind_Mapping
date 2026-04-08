@@ -26,9 +26,43 @@ type GeminiGenerateContentResponse = {
   }
 }
 
-const DEFAULT_MIN_SEGMENTS = 4
-const DEFAULT_MAX_SEGMENTS = 12
+const DEFAULT_MIN_SEGMENTS = 6
+const DEFAULT_MAX_SEGMENTS = 6
 const MAX_INPUT_LENGTH = 32000
+const ALLOWED_ICON_TOKENS = [
+  '💡',
+  '🎯',
+  '⚠️',
+  '📈',
+  '📉',
+  '💰',
+  '✂️',
+  '👥',
+  '🕒',
+  '🚀',
+  '🧩',
+  '🔍',
+  '📚',
+  '✅',
+  '❌',
+  '🧠',
+  '🧪',
+  '🔒',
+  '📣',
+  '🤝',
+  '🛠️',
+  '📝',
+  'iconify:tabler:scissors',
+  'iconify:tabler:coins',
+  'iconify:tabler:chart-line',
+  'iconify:tabler:alert-triangle',
+  'iconify:tabler:users',
+  'iconify:tabler:clock-hour-4',
+  'iconify:tabler:rocket',
+  'iconify:tabler:puzzle',
+  'iconify:tabler:search',
+  'iconify:tabler:bulb',
+] as const
 
 function getEnvVariable(name: string) {
   const processRef = (globalThis as typeof globalThis & { process?: { env?: Record<string, string | undefined> } }).process
@@ -101,11 +135,14 @@ async function requestGeminiSegments(apiKey: string, payload: AnalyzeMapRequestP
   const instructions = [
     'You convert long-form text into a sequence of meaningful memory-map points.',
     'Return strict JSON with field: segments.',
-    'Each segment must include: text and keyword.',
+    'Each segment must include: text, keyword, and optional iconTokens.',
     `Produce between ${payload.minSegments} and ${payload.maxSegments} ordered segments.`,
     'Each keyword must be a concise title in 2-5 words, title-cased, no filler, no trailing punctuation.',
     'Avoid generic labels like Introduction, Overview, Summary, Conclusion unless the segment is explicitly about those concepts.',
     'Prefer insight/action/decision-oriented phrasing when possible.',
+    'iconTokens can contain 1-2 items from the allowed icon list only.',
+    'Use 2 icons only when a combination improves clarity (for example, budget cut -> money plus scissors).',
+    `Allowed icon tokens: ${ALLOWED_ICON_TOKENS.join(', ')}`,
   ]
 
   const prompt = [
@@ -147,6 +184,15 @@ async function requestGeminiSegments(apiKey: string, payload: AnalyzeMapRequestP
                 properties: {
                   text: { type: 'string' },
                   keyword: { type: 'string' },
+                  iconTokens: {
+                    type: 'array',
+                    minItems: 1,
+                    maxItems: 2,
+                    items: {
+                      type: 'string',
+                      enum: [...ALLOWED_ICON_TOKENS],
+                    },
+                  },
                 },
               },
             },

@@ -1,4 +1,5 @@
 import { Suspense, lazy } from 'react'
+import { splitIconTokens } from '../utils/assignIcon'
 
 type IconGlyphProps = {
   value: string
@@ -20,21 +21,59 @@ function IconifyFallback() {
 }
 
 export function IconGlyph({ value, className }: IconGlyphProps) {
-  if (value.startsWith(ICONIFY_PREFIX)) {
-    const iconName = value.slice(ICONIFY_PREFIX.length)
+  const tokens = splitIconTokens(value)
+  const normalizedTokens = tokens.length > 0 ? tokens : [value]
+
+  const renderToken = (token: string) => {
+    if (token.startsWith(ICONIFY_PREFIX)) {
+      const iconName = token.slice(ICONIFY_PREFIX.length)
+
+      return (
+        <span className="icon-glyph__token" key={token} aria-hidden="true">
+          <Suspense fallback={<IconifyFallback />}>
+            <LazyIcon icon={iconName} />
+          </Suspense>
+        </span>
+      )
+    }
+
+    return (
+      <span className="icon-glyph__token" key={token} aria-hidden="true">
+        {token}
+      </span>
+    )
+  }
+
+  if (normalizedTokens.length === 1) {
+    const token = normalizedTokens[0]
+    if (!token) {
+      return null
+    }
+
+    if (token.startsWith(ICONIFY_PREFIX)) {
+      const iconName = token.slice(ICONIFY_PREFIX.length)
+
+      return (
+        <span className={className} aria-hidden="true">
+          <Suspense fallback={<IconifyFallback />}>
+            <LazyIcon icon={iconName} />
+          </Suspense>
+        </span>
+      )
+    }
 
     return (
       <span className={className} aria-hidden="true">
-        <Suspense fallback={<IconifyFallback />}>
-          <LazyIcon icon={iconName} />
-        </Suspense>
+        {token}
       </span>
     )
   }
 
   return (
     <span className={className} aria-hidden="true">
-      {value}
+      <span className="icon-glyph__multi">
+        {normalizedTokens.map((token) => renderToken(token))}
+      </span>
     </span>
   )
 }

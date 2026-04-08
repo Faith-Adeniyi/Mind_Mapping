@@ -16,13 +16,23 @@ import { createPreview } from './utils/segmentPreview'
 import { clearDraft, loadDraft, saveDraft } from './utils/storage'
 
 const DEFAULT_TOPIC = 'Project Presentation'
-const MIN_SEGMENTS = 4
+const MIN_SEGMENTS = 3
 const MAX_SEGMENTS = 12
+const DEFAULT_SEGMENT_COUNT = 6
+
+function clampSegmentCount(value: number) {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_SEGMENT_COUNT
+  }
+
+  return Math.max(MIN_SEGMENTS, Math.min(MAX_SEGMENTS, Math.round(value)))
+}
 
 function createDefaultDraft(): MapDraft {
   return {
     topic: DEFAULT_TOPIC,
     rawText: '',
+    desiredSegmentCount: DEFAULT_SEGMENT_COUNT,
     segments: [],
     activeSegmentId: null,
     layoutMode: 'clock',
@@ -30,9 +40,14 @@ function createDefaultDraft(): MapDraft {
 }
 
 function normalizeDraft(draft: MapDraft): MapDraft {
+  const normalizedCount = clampSegmentCount(
+    Number.isFinite(draft.desiredSegmentCount) ? draft.desiredSegmentCount : DEFAULT_SEGMENT_COUNT,
+  )
+
   if (draft.segments.length === 0) {
     return {
       ...draft,
+      desiredSegmentCount: normalizedCount,
       activeSegmentId: null,
     }
   }
@@ -43,6 +58,7 @@ function normalizeDraft(draft: MapDraft): MapDraft {
 
   return {
     ...draft,
+    desiredSegmentCount: normalizedCount,
     activeSegmentId: draft.segments[0]?.id ?? null,
   }
 }
@@ -67,7 +83,11 @@ function createSegments(drafts: GeneratedSegmentDraft[]) {
     order: index + 1,
     text: draft.text,
     keyword: draft.keyword,
-    icon: assignIcon(draft.text),
+    icon: assignIcon({
+      text: draft.text,
+      keyword: draft.keyword,
+      iconTokens: draft.iconTokens,
+    }),
     preview: createPreview(draft.text),
     tone: TONE_SEQUENCE[index % TONE_SEQUENCE.length] ?? 'primary',
   }))
@@ -125,6 +145,8 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationStatus, setGenerationStatus] = useState<string | null>(null)
   const [generationNote, setGenerationNote] = useState<string | null>(null)
+  const [isSourceSectionOpen, setIsSourceSectionOpen] = useState(true)
+  const [isEditorSectionOpen, setIsEditorSectionOpen] = useState(true)
   const [presentation, setPresentation] = useState<PresentationState>({
     isOpen: false,
     index: 0,
@@ -191,6 +213,8 @@ function App() {
       return
     }
 
+    const targetCount = clampSegmentCount(draft.desiredSegmentCount)
+
     setIsGenerating(true)
     setGenerationStatus('Analyzing key points...')
     setGenerationNote(null)
@@ -198,8 +222,8 @@ function App() {
     void (async () => {
       try {
         const analysis = await analyzeMapText(source, {
-          minSegments: MIN_SEGMENTS,
-          maxSegments: MAX_SEGMENTS,
+          minSegments: targetCount,
+          maxSegments: targetCount,
           onStatusChange: setGenerationStatus,
         })
 
@@ -320,71 +344,110 @@ function App() {
 
       <main className="workspace">
         <aside className="workspace__sidebar">
-          <InputPanel
-            rawText={draft.rawText}
-            charCount={draft.rawText.length}
-            isGenerating={isGenerating}
-            hasSegments={hasSegments}
-            statusNote={isGenerating ? generationStatus : generationNote}
-            onRawTextChange={(value) => setDraft((current) => ({ ...current, rawText: value }))}
-            onGenerate={handleGenerate}
-            onReset={handleReset}
-          />
+          <section className={`sidebar-section ${isSourceSectionOpen ? 'is-open' : ''}`}>
+            <button
+              type="button"
+              className="sidebar-section__toggle"
+              onClick={() => setIsSourceSectionOpen((current) => !current)}
+              aria-expanded={isSourceSectionOpen}
+              aria-controls="sidebar-source-panel"
+            >
+              <span>Source Material</span>
+              <span className="sidebar-section__chevron" aria-hidden="true">
+                {isSourceSectionOpen ? '\u2212' : '+'}
+              </span>
+            </button>
+            <div id="sidebar-source-panel" className="sidebar-section__content">
+              <InputPanel
+                rawText={draft.rawText}
+                charCount={draft.rawText.length}
+                desiredSegmentCount={draft.desiredSegmentCount}
+                isGenerating={isGenerating}
+                hasSegments={hasSegments}
+                statusNote={isGenerating ? generationStatus : generationNote}
+                onRawTextChange={(value) => setDraft((current) => ({ ...current, rawText: value }))}
+                onDesiredSegmentCountChange={(value) =>
+                  setDraft((current) => ({
+                    ...current,
+                    desiredSegmentCount: clampSegmentCount(value),
+                  }))
+                }
+                onGenerate={handleGenerate}
+                onReset={handleReset}
+              />
+            </div>
+          </section>
 
-          <EditorPanel
-            topic={draft.topic}
-            segments={draft.segments}
-            activeSegmentId={draft.activeSegmentId}
-            onTopicChange={(topic) => setDraft((current) => ({ ...current, topic }))}
-            onSelectSegment={handleSelectSegment}
-            onSegmentIconSelect={(segmentId, icon) =>
-              setDraft((current) => ({
-                ...current,
-                segments: current.segments.map((segment) =>
-                  segment.id === segmentId
-                    ? {
-                        ...segment,
-                        icon,
-                      }
-                    : segment,
-                ),
-              }))
-            }
-            onReorderSegment={(draggedSegmentId, targetSegmentId) =>
-              setDraft((current) => ({
-                ...current,
-                segments: reorderSegments(current.segments, draggedSegmentId, targetSegmentId),
-              }))
-            }
-            onMoveSegment={(segmentId, direction) =>
-              setDraft((current) => ({
-                ...current,
-                segments: moveSegment(current.segments, segmentId, direction),
-              }))
-            }
-            onSegmentKeywordChange={(segmentId, keyword) =>
-              setDraft((current) => ({
-                ...current,
-                segments: current.segments.map((segment) =>
-                  segment.id === segmentId ? { ...segment, keyword: keyword.trim() || segment.keyword } : segment,
-                ),
-              }))
-            }
-            onSegmentTextChange={(segmentId, text) =>
-              setDraft((current) => ({
-                ...current,
-                segments: current.segments.map((segment) =>
-                  segment.id === segmentId
-                    ? {
-                        ...segment,
-                        text,
-                        preview: createPreview(text),
-                      }
-                    : segment,
-                ),
-              }))
-            }
-          />
+          <section className={`sidebar-section ${isEditorSectionOpen ? 'is-open' : ''}`}>
+            <button
+              type="button"
+              className="sidebar-section__toggle"
+              onClick={() => setIsEditorSectionOpen((current) => !current)}
+              aria-expanded={isEditorSectionOpen}
+              aria-controls="sidebar-editor-panel"
+            >
+              <span>Segment Editor</span>
+              <span className="sidebar-section__chevron" aria-hidden="true">
+                {isEditorSectionOpen ? '\u2212' : '+'}
+              </span>
+            </button>
+            <div id="sidebar-editor-panel" className="sidebar-section__content">
+              <EditorPanel
+                topic={draft.topic}
+                segments={draft.segments}
+                activeSegmentId={draft.activeSegmentId}
+                onTopicChange={(topic) => setDraft((current) => ({ ...current, topic }))}
+                onSelectSegment={handleSelectSegment}
+                onSegmentIconSelect={(segmentId, icon) =>
+                  setDraft((current) => ({
+                    ...current,
+                    segments: current.segments.map((segment) =>
+                      segment.id === segmentId
+                        ? {
+                            ...segment,
+                            icon,
+                          }
+                        : segment,
+                    ),
+                  }))
+                }
+                onReorderSegment={(draggedSegmentId, targetSegmentId) =>
+                  setDraft((current) => ({
+                    ...current,
+                    segments: reorderSegments(current.segments, draggedSegmentId, targetSegmentId),
+                  }))
+                }
+                onMoveSegment={(segmentId, direction) =>
+                  setDraft((current) => ({
+                    ...current,
+                    segments: moveSegment(current.segments, segmentId, direction),
+                  }))
+                }
+                onSegmentKeywordChange={(segmentId, keyword) =>
+                  setDraft((current) => ({
+                    ...current,
+                    segments: current.segments.map((segment) =>
+                      segment.id === segmentId ? { ...segment, keyword: keyword.trim() || segment.keyword } : segment,
+                    ),
+                  }))
+                }
+                onSegmentTextChange={(segmentId, text) =>
+                  setDraft((current) => ({
+                    ...current,
+                    segments: current.segments.map((segment) =>
+                      segment.id === segmentId
+                        ? {
+                            ...segment,
+                            text,
+                            preview: createPreview(text),
+                          }
+                        : segment,
+                    ),
+                  }))
+                }
+              />
+            </div>
+          </section>
         </aside>
 
         <section className="workspace__canvas">
@@ -395,7 +458,7 @@ function App() {
               <p className="panel-kicker">Allison Mind Mapping</p>
               <h2>Generate your first memory map</h2>
               <p>
-                Paste a speech, lecture, or project notes on the left. The app will segment it into 4-12 nodes and
+                Paste a speech, lecture, or project notes on the left. The app will segment it into 3-12 nodes and
                 render Clock, Grid, and Linear views in sync.
               </p>
             </div>

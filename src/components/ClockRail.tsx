@@ -85,12 +85,31 @@ export function ClockRail({ topic, segments, activeSegmentId, onSelectSegment }:
   }
 
   const isDense = segments.length >= 10
+  const isSmallStage = stageSize.width <= 640
+  const isMediumStage = stageSize.width <= 980
+
+  const getTierValue = (small: number, medium: number, desktop: number) => {
+    if (isSmallStage) {
+      return small
+    }
+
+    if (isMediumStage) {
+      return medium
+    }
+
+    return desktop
+  }
+
+  const denseNodeMin = getTierValue(84, 96, 108)
+  const regularNodeMin = getTierValue(96, 112, 132)
+  const denseHubMin = getTierValue(146, 164, 176)
+  const regularHubMin = getTierValue(168, 186, 200)
   const nodeDiameter = isDense
-    ? clamp(stageSize.width * 0.14, 108, 132)
-    : clamp(stageSize.width * 0.16, 132, 162)
+    ? clamp(stageSize.width * 0.14, denseNodeMin, isSmallStage ? 114 : 132)
+    : clamp(stageSize.width * 0.16, regularNodeMin, isSmallStage ? 126 : 162)
   const hubDiameter = isDense
-    ? clamp(stageSize.width * 0.24, 176, 220)
-    : clamp(stageSize.width * 0.28, 200, 270)
+    ? clamp(stageSize.width * 0.24, denseHubMin, isSmallStage ? 190 : 220)
+    : clamp(stageSize.width * 0.28, regularHubMin, isSmallStage ? 218 : 270)
   const nodeRadius = nodeDiameter / 2
 
   return (

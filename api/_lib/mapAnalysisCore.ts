@@ -80,6 +80,19 @@ function normalizeWhitespace(text: string) {
   return text.replace(/\r\n/g, '\n').replace(/\s+/g, ' ').trim()
 }
 
+function normalizeIconTokens(value: unknown) {
+  if (!Array.isArray(value)) {
+    return undefined
+  }
+
+  const cleaned = value
+    .map((token) => (typeof token === 'string' ? token.trim() : ''))
+    .filter((token) => token.length > 0)
+    .slice(0, 2)
+
+  return cleaned.length > 0 ? cleaned : undefined
+}
+
 function splitSentences(text: string) {
   const normalized = normalizeWhitespace(text)
   if (!normalized) {
@@ -304,6 +317,7 @@ function makeDistinctKeywords(drafts: GeneratedSegmentDraft[]) {
     return {
       text: normalizeWhitespace(draft.text),
       keyword,
+      iconTokens: normalizeIconTokens(draft.iconTokens),
     }
   })
 }
@@ -359,11 +373,20 @@ export function normalizeGeneratedDrafts(
   const minSegments = clamp(options.minSegments, 1, 24)
   const maxSegments = clamp(options.maxSegments, minSegments, 24)
 
-  let next = drafts
-    .map((draft) => ({
-      text: normalizeWhitespace(draft.text),
-      keyword: normalizeWhitespace(draft.keyword),
-    }))
+  let next: GeneratedSegmentDraft[] = drafts
+    .map((draft) => {
+      const iconTokens = normalizeIconTokens(draft.iconTokens)
+      return iconTokens
+        ? {
+            text: normalizeWhitespace(draft.text),
+            keyword: normalizeWhitespace(draft.keyword),
+            iconTokens,
+          }
+        : {
+            text: normalizeWhitespace(draft.text),
+            keyword: normalizeWhitespace(draft.keyword),
+          }
+    })
     .filter((draft) => draft.text.length > 0)
 
   if (next.length === 0) {
@@ -388,10 +411,19 @@ export function normalizeGeneratedDrafts(
     }))
   }
 
-  next = next.map((draft) => ({
-    text: draft.text,
-    keyword: enforceKeywordShape(draft.keyword || createKeywordSummary(draft.text), draft.text),
-  }))
+  next = next.map((draft) => {
+    const iconTokens = normalizeIconTokens(draft.iconTokens)
+    return iconTokens
+      ? {
+          text: draft.text,
+          keyword: enforceKeywordShape(draft.keyword || createKeywordSummary(draft.text), draft.text),
+          iconTokens,
+        }
+      : {
+          text: draft.text,
+          keyword: enforceKeywordShape(draft.keyword || createKeywordSummary(draft.text), draft.text),
+        }
+  })
 
   return makeDistinctKeywords(next)
 }

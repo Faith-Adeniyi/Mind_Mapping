@@ -15,6 +15,7 @@ export type Segment = {
 export type MapDraft = {
   topic: string
   rawText: string
+  desiredSegmentCount: number
   segments: Segment[]
   activeSegmentId: string | null
   layoutMode: LayoutMode
@@ -30,6 +31,7 @@ export type PresentationState = {
 export type GeneratedSegmentDraft = {
   text: string
   keyword: string
+  iconTokens?: string[]
 }
 
 export type AnalyzeMapRequestPayload = {

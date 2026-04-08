@@ -28,6 +28,21 @@ const ICON_GRID_SKELETON_COUNT = 54
 const MOVE_UP_GLYPH = '\u2191'
 const MOVE_DOWN_GLYPH = '\u2193'
 const DRAG_HANDLE_GLYPH = '\u22EE\u22EE'
+const MOBILE_PICKER_BREAKPOINT = 1180
+const DESKTOP_PICKER_WIDTH = 560
+const DESKTOP_PICKER_MIN_WIDTH = 420
+const DESKTOP_PICKER_MAX_WIDTH = 640
+const DESKTOP_PICKER_MIN_HEIGHT = 300
+const DESKTOP_PICKER_MAX_HEIGHT = 680
+const PICKER_VIEWPORT_GUTTER = 12
+const PICKER_VERTICAL_GAP = 10
+
+type PickerDesktopLayout = {
+  left: number
+  top: number
+  width: number
+  maxHeight: number
+}
 
 export function EditorPanel({
   topic,
@@ -50,9 +65,85 @@ export function EditorPanel({
   const [pickerLoadError, setPickerLoadError] = useState<string | null>(null)
   const [pickerLoadRequestKey, setPickerLoadRequestKey] = useState(0)
   const [draggedSegmentId, setDraggedSegmentId] = useState<string | null>(null)
+  const [desktopPickerLayout, setDesktopPickerLayout] = useState<PickerDesktopLayout | null>(null)
   const pickerRef = useRef<HTMLDivElement | null>(null)
   const pickerTriggerRef = useRef<HTMLButtonElement | null>(null)
   const activeSourceData = iconDataBySource[activeSource]
+
+  useEffect(() => {
+    if (!isPickerOpen) {
+      return undefined
+    }
+
+    const updateDesktopPickerLayout = () => {
+      if (!pickerTriggerRef.current) {
+        return
+      }
+
+      if (window.innerWidth <= MOBILE_PICKER_BREAKPOINT) {
+        setDesktopPickerLayout(null)
+        return
+      }
+
+      const triggerRect = pickerTriggerRef.current.getBoundingClientRect()
+      const maxViewportWidth = Math.max(0, window.innerWidth - PICKER_VIEWPORT_GUTTER * 2)
+      const width = Math.min(
+        DESKTOP_PICKER_MAX_WIDTH,
+        Math.max(Math.min(DESKTOP_PICKER_MIN_WIDTH, maxViewportWidth), Math.min(DESKTOP_PICKER_WIDTH, maxViewportWidth)),
+      )
+
+      const desiredMaxHeight = Math.min(DESKTOP_PICKER_MAX_HEIGHT, Math.floor(window.innerHeight * 0.78))
+      const belowTop = triggerRect.bottom + PICKER_VERTICAL_GAP
+      const availableBelow = window.innerHeight - belowTop - PICKER_VIEWPORT_GUTTER
+
+      let top = belowTop
+      let maxHeight = Math.min(desiredMaxHeight, availableBelow)
+
+      if (maxHeight < DESKTOP_PICKER_MIN_HEIGHT) {
+        const availableAbove = triggerRect.top - PICKER_VERTICAL_GAP - PICKER_VIEWPORT_GUTTER
+
+        if (availableAbove > availableBelow) {
+          maxHeight = Math.min(desiredMaxHeight, Math.max(DESKTOP_PICKER_MIN_HEIGHT, availableAbove))
+          top = Math.max(PICKER_VIEWPORT_GUTTER, triggerRect.top - PICKER_VERTICAL_GAP - maxHeight)
+        } else {
+          maxHeight = Math.max(DESKTOP_PICKER_MIN_HEIGHT, Math.min(desiredMaxHeight, availableBelow))
+          top = Math.min(Math.max(PICKER_VIEWPORT_GUTTER, belowTop), window.innerHeight - PICKER_VIEWPORT_GUTTER - maxHeight)
+        }
+      }
+
+      let left = triggerRect.left
+      left = Math.max(PICKER_VIEWPORT_GUTTER, left)
+      left = Math.min(left, window.innerWidth - PICKER_VIEWPORT_GUTTER - width)
+
+      setDesktopPickerLayout((current) => {
+        if (
+          current &&
+          Math.abs(current.left - left) < 1 &&
+          Math.abs(current.top - top) < 1 &&
+          Math.abs(current.width - width) < 1 &&
+          Math.abs(current.maxHeight - maxHeight) < 1
+        ) {
+          return current
+        }
+
+        return {
+          left,
+          top,
+          width,
+          maxHeight,
+        }
+      })
+    }
+
+    updateDesktopPickerLayout()
+    window.addEventListener('resize', updateDesktopPickerLayout)
+    window.addEventListener('scroll', updateDesktopPickerLayout, true)
+
+    return () => {
+      window.removeEventListener('resize', updateDesktopPickerLayout)
+      window.removeEventListener('scroll', updateDesktopPickerLayout, true)
+    }
+  }, [isPickerOpen])
 
   useEffect(() => {
     if (!isPickerOpen) {
@@ -263,7 +354,22 @@ export function EditorPanel({
           {isPickerOpen ? <div className="icon-picker-backdrop" aria-hidden="true" /> : null}
 
           {isPickerOpen ? (
-            <div ref={pickerRef} className="icon-picker-panel" role="dialog" aria-label="Icon Picker">
+            <div
+              ref={pickerRef}
+              className={`icon-picker-panel ${desktopPickerLayout ? 'is-floating' : ''}`}
+              role="dialog"
+              aria-label="Icon Picker"
+              style={
+                desktopPickerLayout
+                  ? {
+                      left: `${desktopPickerLayout.left}px`,
+                      top: `${desktopPickerLayout.top}px`,
+                      width: `${desktopPickerLayout.width}px`,
+                      maxHeight: `${desktopPickerLayout.maxHeight}px`,
+                    }
+                  : undefined
+              }
+            >
               <div className="icon-picker-panel__head">
                 <div className="icon-source-tabs" role="tablist" aria-label="Icon sources">
                   {(Object.keys(ICON_SOURCE_LABELS) as IconSource[]).map((source) => (

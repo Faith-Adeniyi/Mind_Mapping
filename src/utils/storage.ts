@@ -1,6 +1,13 @@
 import type { LayoutMode, MapDraft, Segment, SegmentTone } from '../types'
 
 const STORAGE_KEY = 'clockrail:mvp:draft'
+const MIN_DESIRED_SEGMENTS = 3
+const MAX_DESIRED_SEGMENTS = 12
+const DEFAULT_DESIRED_SEGMENTS = 6
+
+function clampDesiredSegmentCount(value: number) {
+  return Math.max(MIN_DESIRED_SEGMENTS, Math.min(MAX_DESIRED_SEGMENTS, value))
+}
 
 function isLayoutMode(value: unknown): value is LayoutMode {
   return value === 'clock' || value === 'grid' || value === 'linear'
@@ -38,6 +45,8 @@ function isMapDraft(value: unknown): value is MapDraft {
   return (
     typeof candidate.topic === 'string' &&
     typeof candidate.rawText === 'string' &&
+    (candidate.desiredSegmentCount === undefined ||
+      (typeof candidate.desiredSegmentCount === 'number' && Number.isFinite(candidate.desiredSegmentCount))) &&
     Array.isArray(candidate.segments) &&
     candidate.segments.every((segment) => isSegment(segment)) &&
     (typeof candidate.activeSegmentId === 'string' || candidate.activeSegmentId === null) &&
@@ -54,7 +63,16 @@ export function loadDraft() {
     }
 
     const parsed: unknown = JSON.parse(raw)
-    return isMapDraft(parsed) ? parsed : null
+    if (!isMapDraft(parsed)) {
+      return null
+    }
+
+    return {
+      ...parsed,
+      desiredSegmentCount: clampDesiredSegmentCount(
+        typeof parsed.desiredSegmentCount === 'number' ? parsed.desiredSegmentCount : DEFAULT_DESIRED_SEGMENTS,
+      ),
+    }
   } catch {
     return null
   }

@@ -1,6 +1,7 @@
 export type GeneratedSegmentDraft = {
   text: string
   keyword: string
+  iconTokens?: string[]
 }
 
 export type AnalyzeMapRequestPayload = {
