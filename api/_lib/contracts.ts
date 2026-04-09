@@ -12,6 +12,7 @@ export type AnalyzeMapRequestPayload = {
 
 export type AnalyzeMapResponsePayload = {
   source: 'llm' | 'local'
+  topic: string
   segments: GeneratedSegmentDraft[]
   fallbackReason?: string
 }

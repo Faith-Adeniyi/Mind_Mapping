@@ -3,7 +3,7 @@ import type {
   AnalyzeMapResponsePayload,
   GeneratedSegmentDraft,
 } from '../types'
-import { localAnalyzeMapText, normalizeGeneratedDrafts, type SegmentAnalysisOptions } from './mapAnalysisCore'
+import { inferMainTopic, localAnalyzeMapText, normalizeGeneratedDrafts, type SegmentAnalysisOptions } from './mapAnalysisCore'
 
 type AnalyzeMapOptions = SegmentAnalysisOptions & {
   onStatusChange?: (message: string) => void
@@ -11,6 +11,7 @@ type AnalyzeMapOptions = SegmentAnalysisOptions & {
 
 export type AnalyzeMapResult = {
   source: 'llm' | 'local'
+  topic: string
   segments: GeneratedSegmentDraft[]
   note?: string
 }
@@ -43,6 +44,7 @@ async function requestRemoteAnalysis(payload: AnalyzeMapRequestPayload): Promise
 
     return {
       source: data.source === 'local' ? 'local' : 'llm',
+      topic: typeof data.topic === 'string' ? data.topic : '',
       segments: data.segments,
       fallbackReason: typeof data.fallbackReason === 'string' ? data.fallbackReason : undefined,
     }
@@ -67,6 +69,7 @@ export async function analyzeMapText(text: string, options: AnalyzeMapOptions): 
 
     return {
       source: remote.source,
+      topic: inferMainTopic(text, remote.topic),
       segments: normalized,
       note: remote.source === 'local'
         ? (remote.fallbackReason ?? 'Generated with local fallback analysis.')
@@ -80,6 +83,7 @@ export async function analyzeMapText(text: string, options: AnalyzeMapOptions): 
 
     return {
       source: 'local',
+      topic: inferMainTopic(text),
       segments: local,
       note: `Generated with local fallback analysis. ${message}`,
     }

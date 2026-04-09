@@ -76,8 +76,29 @@ const GENERIC_WORDS = new Set([
   'point',
 ])
 
+const TOPIC_LABEL_PREFIX = /^(?:title|topic|main topic|subject|theme)\s*[:\-–]\s*/i
+
+const GENERIC_TOPIC_PHRASES = new Set([
+  'project presentation',
+  'main topic',
+  'topic',
+  'overview',
+  'summary',
+  'conclusion',
+  'introduction',
+  'untitled',
+  'key insight',
+  'core message',
+])
+
+const FALLBACK_MAIN_TOPIC = 'Key Message'
+
 function normalizeWhitespace(text: string) {
   return text.replace(/\r\n/g, '\n').replace(/\s+/g, ' ').trim()
+}
+
+function stripListPrefix(line: string) {
+  return line.replace(/^(?:[-*•]\s+|\d+[).-]\s+)/, '').trim()
 }
 
 function normalizeIconTokens(value: unknown) {
@@ -123,6 +144,94 @@ function clamp(value: number, min: number, max: number) {
 
 function toTitle(word: string) {
   return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+}
+
+function toTopicCase(value: string) {
+  return value
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => toTitle(word))
+    .join(' ')
+}
+
+function normalizeTopicCandidate(topic: string) {
+  let cleaned = normalizeWhitespace(topic)
+  cleaned = cleaned.replace(TOPIC_LABEL_PREFIX, '')
+  cleaned = cleaned.replace(/^["'`]+|["'`]+$/g, '').trim()
+  cleaned = cleaned.replace(/[|/]+/g, ' ').replace(/\s+/g, ' ').trim()
+  cleaned = cleaned.replace(/[.,;:!?-]+$/g, '').trim()
+
+  if (!cleaned) {
+    return ''
+  }
+
+  if (cleaned.length > 72) {
+    const sentenceHead = cleaned.split(/[.!?;:]/)[0]?.trim() ?? ''
+    if (sentenceHead.length >= 12) {
+      cleaned = sentenceHead
+    } else {
+      cleaned = cleaned.slice(0, 72).trim()
+    }
+  }
+
+  const normalized = cleaned.toLowerCase()
+  if (GENERIC_TOPIC_PHRASES.has(normalized)) {
+    return ''
+  }
+
+  const words = tokenize(cleaned)
+  const contentWords = toContentTokens(cleaned)
+  if (words.length < 2 || contentWords.length === 0) {
+    return ''
+  }
+
+  return toTopicCase(cleaned)
+}
+
+function detectExplicitTopicFromText(text: string) {
+  const lines = text
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+
+  if (lines.length === 0) {
+    return ''
+  }
+
+  for (const line of lines.slice(0, 8)) {
+    if (!TOPIC_LABEL_PREFIX.test(line)) {
+      continue
+    }
+
+    const candidate = normalizeTopicCandidate(line)
+    if (candidate) {
+      return candidate
+    }
+  }
+
+  for (const line of lines.slice(0, 5)) {
+    const stripped = stripListPrefix(line)
+    if (!stripped || /[.!?]$/.test(stripped)) {
+      continue
+    }
+
+    const words = tokenize(stripped)
+    const contentWords = toContentTokens(stripped)
+    const isHeadingLike = words.length >= 2 && words.length <= 10 && stripped.length <= 80
+    const isContentHeavy = contentWords.length >= 2 && contentWords.length / Math.max(words.length, 1) >= 0.45
+
+    if (!isHeadingLike || !isContentHeavy) {
+      continue
+    }
+
+    const candidate = normalizeTopicCandidate(stripped)
+    if (candidate) {
+      return candidate
+    }
+  }
+
+  return ''
 }
 
 function scoreTransitionCue(sentence: string) {
@@ -365,6 +474,42 @@ export function createKeywordSummary(text: string) {
   return enforceKeywordShape(labelWords.join(' '), text)
 }
 
+function synthesizeMainTopic(text: string) {
+  const keywordSummary = normalizeTopicCandidate(createKeywordSummary(text))
+  if (keywordSummary) {
+    return keywordSummary
+  }
+
+  const rankedTerms = extractRankedTerms(text, 5).map((term) => toTitle(term))
+  if (rankedTerms.length >= 2) {
+    const summary = normalizeTopicCandidate(rankedTerms.slice(0, 4).join(' '))
+    if (summary) {
+      return summary
+    }
+  }
+
+  return FALLBACK_MAIN_TOPIC
+}
+
+export function inferMainTopic(text: string, suggestedTopic?: string) {
+  const normalizedText = normalizeWhitespace(text)
+  if (!normalizedText) {
+    return FALLBACK_MAIN_TOPIC
+  }
+
+  const explicitTopic = detectExplicitTopicFromText(normalizedText)
+  if (explicitTopic) {
+    return explicitTopic
+  }
+
+  const modelTopic = normalizeTopicCandidate(suggestedTopic ?? '')
+  if (modelTopic) {
+    return modelTopic
+  }
+
+  return synthesizeMainTopic(normalizedText)
+}
+
 export function normalizeGeneratedDrafts(
   drafts: GeneratedSegmentDraft[],
   options: SegmentAnalysisOptions,
@@ -523,3 +668,4 @@ export function localAnalyzeMapText(text: string, options: SegmentAnalysisOption
 
   return normalizeGeneratedDrafts(drafts, { minSegments, maxSegments }, normalizedInput)
 }
+

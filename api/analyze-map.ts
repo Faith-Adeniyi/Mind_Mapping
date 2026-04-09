@@ -1,5 +1,5 @@
 import type { AnalyzeMapRequestPayload, GeneratedSegmentDraft } from './_lib/contracts.js'
-import { localAnalyzeMapText, normalizeGeneratedDrafts } from './_lib/mapAnalysisCore.js'
+import { inferMainTopic, localAnalyzeMapText, normalizeGeneratedDrafts } from './_lib/mapAnalysisCore.js'
 
 type ServerRequest = {
   method?: string
@@ -93,17 +93,22 @@ function parseJsonObjectText(value: string) {
   const trimmed = value.trim()
 
   try {
-    return JSON.parse(trimmed) as { segments?: GeneratedSegmentDraft[] }
+    return JSON.parse(trimmed) as { topic?: string; segments?: GeneratedSegmentDraft[] }
   } catch {
     const blockMatch = trimmed.match(/```(?:json)?\s*([\s\S]+?)\s*```/i)
     if (blockMatch?.[1]) {
-      return JSON.parse(blockMatch[1]) as { segments?: GeneratedSegmentDraft[] }
+      return JSON.parse(blockMatch[1]) as { topic?: string; segments?: GeneratedSegmentDraft[] }
     }
     throw new Error('Model returned malformed JSON')
   }
 }
 
-function parseSegmentsFromGemini(response: GeminiGenerateContentResponse): GeneratedSegmentDraft[] {
+type ParsedGeminiAnalysis = {
+  topic?: string
+  segments: GeneratedSegmentDraft[]
+}
+
+function parseAnalysisFromGemini(response: GeminiGenerateContentResponse): ParsedGeminiAnalysis {
   const blockReason = response.promptFeedback?.blockReason
   if (blockReason) {
     throw new Error(`Gemini blocked prompt: ${blockReason}`)
@@ -126,15 +131,19 @@ function parseSegmentsFromGemini(response: GeminiGenerateContentResponse): Gener
     throw new Error('Model response missing segments')
   }
 
-  return parsed.segments
+  return {
+    topic: typeof parsed.topic === 'string' ? parsed.topic : undefined,
+    segments: parsed.segments,
+  }
 }
 
-async function requestGeminiSegments(apiKey: string, payload: AnalyzeMapRequestPayload): Promise<GeneratedSegmentDraft[]> {
+async function requestGeminiSegments(apiKey: string, payload: AnalyzeMapRequestPayload): Promise<ParsedGeminiAnalysis> {
   const model = getEnvVariable('GEMINI_MODEL') || 'gemini-2.5-flash-lite'
 
   const instructions = [
     'You convert long-form text into a sequence of meaningful memory-map points.',
-    'Return strict JSON with field: segments.',
+    'Return strict JSON with fields: topic, segments.',
+    'topic must be a short, concrete main topic (3-7 words), title-cased, and never generic placeholder text.',
     'Each segment must include: text, keyword, and optional iconTokens.',
     `Produce between ${payload.minSegments} and ${payload.maxSegments} ordered segments.`,
     'Each keyword must be a concise title in 2-5 words, title-cased, no filler, no trailing punctuation.',
@@ -171,8 +180,9 @@ async function requestGeminiSegments(apiKey: string, payload: AnalyzeMapRequestP
         responseJsonSchema: {
           type: 'object',
           additionalProperties: false,
-          required: ['segments'],
+          required: ['topic', 'segments'],
           properties: {
+            topic: { type: 'string' },
             segments: {
               type: 'array',
               minItems: payload.minSegments,
@@ -208,7 +218,7 @@ async function requestGeminiSegments(apiKey: string, payload: AnalyzeMapRequestP
   }
 
   const completion = (await response.json()) as GeminiGenerateContentResponse
-  return parseSegmentsFromGemini(completion)
+  return parseAnalysisFromGemini(completion)
 }
 
 export default async function handler(req: ServerRequest, res: ServerResponse) {
@@ -248,18 +258,22 @@ export default async function handler(req: ServerRequest, res: ServerResponse) {
   }
 
   try {
-    const modelSegments = await requestGeminiSegments(apiKey, payload)
-    const normalized = normalizeGeneratedDrafts(modelSegments, { minSegments, maxSegments }, text)
+    const modelAnalysis = await requestGeminiSegments(apiKey, payload)
+    const normalized = normalizeGeneratedDrafts(modelAnalysis.segments, { minSegments, maxSegments }, text)
+    const topic = inferMainTopic(text, modelAnalysis.topic)
 
     res.status(200).json({
       source: 'llm',
+      topic,
       segments: normalized,
     })
     return
   } catch {
     const fallback = localAnalyzeMapText(text, { minSegments, maxSegments })
+    const topic = inferMainTopic(text)
     res.status(200).json({
       source: 'local',
+      topic,
       segments: fallback,
       fallbackReason: 'Gemini analysis unavailable; local fallback used.',
     })

@@ -63,20 +63,6 @@ function normalizeDraft(draft: MapDraft): MapDraft {
   }
 }
 
-function guessTopic(rawText: string, fallbackTopic: string) {
-  const firstLine = rawText
-    .replace(/\r\n/g, '\n')
-    .split('\n')
-    .map((line) => line.trim())
-    .find((line) => line.length > 0)
-
-  if (!firstLine) {
-    return fallbackTopic || DEFAULT_TOPIC
-  }
-
-  return firstLine.length > 64 ? `${firstLine.slice(0, 61).trimEnd()}...` : firstLine
-}
-
 function createSegments(drafts: GeneratedSegmentDraft[]) {
   return drafts.map((draft, index): Segment => ({
     id: `segment-${index + 1}`,
@@ -232,7 +218,7 @@ function App() {
         setDraft((current) =>
           normalizeDraft({
             ...current,
-            topic: current.topic.trim() ? current.topic : guessTopic(source, DEFAULT_TOPIC),
+            topic: analysis.topic.trim() || DEFAULT_TOPIC,
             segments: generated,
             activeSegmentId: generated[0]?.id ?? null,
           }),
