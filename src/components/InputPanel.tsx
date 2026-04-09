@@ -3,6 +3,7 @@ type InputPanelProps = {
   charCount: number
   desiredSegmentCount: number
   isGenerating: boolean
+  isGenerateBlocked?: boolean
   hasSegments: boolean
   statusNote?: string | null
   onRawTextChange: (value: string) => void
@@ -16,6 +17,7 @@ export function InputPanel({
   charCount,
   desiredSegmentCount,
   isGenerating,
+  isGenerateBlocked,
   hasSegments,
   statusNote,
   onRawTextChange,
@@ -68,7 +70,12 @@ export function InputPanel({
         <button type="button" className="ghost-button" onClick={onReset}>
           Reset
         </button>
-        <button type="button" className="primary-button" onClick={onGenerate} disabled={isGenerating || !rawText.trim()}>
+        <button
+          type="button"
+          className="primary-button"
+          onClick={onGenerate}
+          disabled={isGenerating || !rawText.trim() || Boolean(isGenerateBlocked)}
+        >
           {isGenerating ? 'Generating...' : 'Generate Mind Map'}
         </button>
       </div>

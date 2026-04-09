@@ -12,6 +12,7 @@ import { TONE_SEQUENCE } from './data/iconDefaults'
 import type { GeneratedSegmentDraft, MapDraft, PresentationState, Segment } from './types'
 import { analyzeMapText } from './utils/analyzeMap'
 import { assignIcon } from './utils/assignIcon'
+import { sanitizeTopicInput, validateGenerationInput } from './utils/inputValidation'
 import { createPreview } from './utils/segmentPreview'
 import { clearDraft, loadDraft, saveDraft } from './utils/storage'
 
@@ -147,6 +148,14 @@ function App() {
   const activeIndex = getActiveIndex(draft.segments, draft.activeSegmentId)
   const activeSegment = draft.segments[activeIndex] ?? null
   const hasSegments = draft.segments.length > 0
+  const desiredSegmentCount = clampSegmentCount(draft.desiredSegmentCount)
+  const generationValidation = validateGenerationInput({
+    text: draft.rawText,
+    desiredSegmentCount,
+  })
+  const generationValidationMessage = draft.rawText.length > 0 && !generationValidation.ok
+    ? generationValidation.message
+    : null
 
   const handleSelectSegment = (segmentId: string) => {
     const selectedIndex = draft.segments.findIndex((segment) => segment.id === segmentId)
@@ -194,12 +203,18 @@ function App() {
   }
 
   const handleGenerate = () => {
-    const source = draft.rawText.trim()
-    if (!source) {
+    const preflight = validateGenerationInput({
+      text: draft.rawText,
+      desiredSegmentCount: clampSegmentCount(draft.desiredSegmentCount),
+    })
+
+    if (!preflight.ok) {
+      setGenerationNote(preflight.message)
       return
     }
 
-    const targetCount = clampSegmentCount(draft.desiredSegmentCount)
+    const source = preflight.value.text
+    const targetCount = preflight.value.minSegments
 
     setIsGenerating(true)
     setGenerationStatus('Analyzing key points...')
@@ -218,7 +233,7 @@ function App() {
         setDraft((current) =>
           normalizeDraft({
             ...current,
-            topic: analysis.topic.trim() || DEFAULT_TOPIC,
+            topic: sanitizeTopicInput(analysis.topic) || DEFAULT_TOPIC,
             segments: generated,
             activeSegmentId: generated[0]?.id ?? null,
           }),
@@ -349,8 +364,9 @@ function App() {
                 charCount={draft.rawText.length}
                 desiredSegmentCount={draft.desiredSegmentCount}
                 isGenerating={isGenerating}
+                isGenerateBlocked={Boolean(generationValidationMessage)}
                 hasSegments={hasSegments}
-                statusNote={isGenerating ? generationStatus : generationNote}
+                statusNote={isGenerating ? generationStatus : (generationValidationMessage ?? generationNote)}
                 onRawTextChange={(value) => setDraft((current) => ({ ...current, rawText: value }))}
                 onDesiredSegmentCountChange={(value) =>
                   setDraft((current) => ({
@@ -382,7 +398,9 @@ function App() {
                 topic={draft.topic}
                 segments={draft.segments}
                 activeSegmentId={draft.activeSegmentId}
-                onTopicChange={(topic) => setDraft((current) => ({ ...current, topic }))}
+                onTopicChange={(topic) =>
+                  setDraft((current) => ({ ...current, topic: sanitizeTopicInput(topic) }))
+                }
                 onSelectSegment={handleSelectSegment}
                 onSegmentIconSelect={(segmentId, icon) =>
                   setDraft((current) => ({

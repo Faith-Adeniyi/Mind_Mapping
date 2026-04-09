@@ -1,9 +1,11 @@
 import type { AnalyzeMapRequestPayload, GeneratedSegmentDraft } from './_lib/contracts.js'
 import { inferMainTopic, localAnalyzeMapText, normalizeGeneratedDrafts } from './_lib/mapAnalysisCore.js'
+import { sanitizeTopicInput, validateAnalyzeMapPayload } from './_lib/inputValidation.js'
 
 type ServerRequest = {
   method?: string
   body?: unknown
+  headers?: Record<string, string | string[] | undefined>
 }
 
 type ServerResponse = {
@@ -28,7 +30,10 @@ type GeminiGenerateContentResponse = {
 
 const DEFAULT_MIN_SEGMENTS = 6
 const DEFAULT_MAX_SEGMENTS = 6
-const MAX_INPUT_LENGTH = 32000
+// Best-effort limiter for serverless: memory is per-instance and not globally shared.
+const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000
+const RATE_LIMIT_MAX_REQUESTS = 20
+const rateLimitBuckets = new Map<string, number[]>()
 const ALLOWED_ICON_TOKENS = [
   '💡',
   '🎯',
@@ -69,24 +74,102 @@ function getEnvVariable(name: string) {
   return processRef?.env?.[name]
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.max(min, Math.min(value, max))
+function getHeaderValue(req: ServerRequest, name: string) {
+  const key = name.toLowerCase()
+  const value = req.headers?.[key]
+
+  if (Array.isArray(value)) {
+    return value[0]
+  }
+
+  return value
 }
 
-function parseBody(body: unknown): Partial<AnalyzeMapRequestPayload> {
+function getRequestFingerprint(req: ServerRequest) {
+  const forwardedFor = getHeaderValue(req, 'x-forwarded-for')
+  const forwardedIp = forwardedFor?.split(',')[0]?.trim()
+  const realIp = getHeaderValue(req, 'x-real-ip')?.trim()
+  const cfIp = getHeaderValue(req, 'cf-connecting-ip')?.trim()
+  const userAgent = getHeaderValue(req, 'user-agent')?.trim()
+
+  const ip = forwardedIp || realIp || cfIp || 'unknown'
+  return `${ip}|${(userAgent || 'unknown').slice(0, 120)}`
+}
+
+function checkRateLimit(key: string) {
+  const now = Date.now()
+  const windowStart = now - RATE_LIMIT_WINDOW_MS
+  const existing = rateLimitBuckets.get(key) ?? []
+  const active = existing.filter((timestamp) => timestamp > windowStart)
+
+  if (active.length >= RATE_LIMIT_MAX_REQUESTS) {
+    const oldest = active[0] ?? now
+    const retryAfterSeconds = Math.max(1, Math.ceil((oldest + RATE_LIMIT_WINDOW_MS - now) / 1000))
+    rateLimitBuckets.set(key, active)
+
+    return {
+      allowed: false,
+      retryAfterSeconds,
+    } as const
+  }
+
+  active.push(now)
+  rateLimitBuckets.set(key, active)
+
+  return {
+    allowed: true,
+    retryAfterSeconds: 0,
+  } as const
+}
+
+function sendError(
+  res: ServerResponse,
+  status: number,
+  code: string,
+  message: string,
+  extras?: { retryAfterSeconds?: number },
+) {
+  if (extras?.retryAfterSeconds) {
+    res.setHeader('Retry-After', String(extras.retryAfterSeconds))
+  }
+
+  res.status(status).json({
+    error: {
+      code,
+      message,
+    },
+    ...(extras?.retryAfterSeconds ? { retryAfterSeconds: extras.retryAfterSeconds } : {}),
+  })
+}
+
+function parseBody(body: unknown) {
   if (typeof body === 'string') {
     try {
-      return JSON.parse(body) as Partial<AnalyzeMapRequestPayload>
+      return {
+        ok: true,
+        value: JSON.parse(body) as unknown,
+      } as const
     } catch {
-      return {}
+      return {
+        ok: false,
+        code: 'INVALID_JSON',
+        message: 'Request body must be valid JSON.',
+      } as const
     }
   }
 
   if (body && typeof body === 'object') {
-    return body as Partial<AnalyzeMapRequestPayload>
+    return {
+      ok: true,
+      value: body,
+    } as const
   }
 
-  return {}
+  return {
+    ok: false,
+    code: 'INVALID_BODY',
+    message: 'Request body must be a JSON object.',
+  } as const
 }
 
 function parseJsonObjectText(value: string) {
@@ -213,8 +296,19 @@ async function requestGeminiSegments(apiKey: string, payload: AnalyzeMapRequestP
   })
 
   if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`Gemini request failed (${response.status}): ${errorText}`)
+    if (response.status === 400 || response.status === 422) {
+      throw new Error('Gemini rejected the analysis request.')
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      throw new Error('Gemini authentication failed.')
+    }
+
+    if (response.status === 429) {
+      throw new Error('Gemini rate limit reached.')
+    }
+
+    throw new Error('Gemini service is temporarily unavailable.')
   }
 
   const completion = (await response.json()) as GeminiGenerateContentResponse
@@ -226,25 +320,40 @@ export default async function handler(req: ServerRequest, res: ServerResponse) {
 
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST')
-    res.status(405).json({ error: 'Method Not Allowed' })
+    sendError(res, 405, 'METHOD_NOT_ALLOWED', 'Method Not Allowed')
     return
   }
 
-  const parsed = parseBody(req.body)
-  const text = typeof parsed.text === 'string' ? parsed.text.trim() : ''
-
-  if (!text) {
-    res.status(400).json({ error: 'Text is required' })
+  const fingerprint = getRequestFingerprint(req)
+  const limitResult = checkRateLimit(fingerprint)
+  if (!limitResult.allowed) {
+    sendError(
+      res,
+      429,
+      'RATE_LIMITED',
+      'Too many requests. Please wait before trying again.',
+      { retryAfterSeconds: limitResult.retryAfterSeconds },
+    )
     return
   }
 
-  if (text.length > MAX_INPUT_LENGTH) {
-    res.status(400).json({ error: 'Text is too long' })
+  const parsedBody = parseBody(req.body)
+  if (!parsedBody.ok) {
+    sendError(res, 400, parsedBody.code, parsedBody.message)
     return
   }
 
-  const minSegments = clamp(parsed.minSegments ?? DEFAULT_MIN_SEGMENTS, 1, 24)
-  const maxSegments = clamp(parsed.maxSegments ?? DEFAULT_MAX_SEGMENTS, minSegments, 24)
+  const validation = validateAnalyzeMapPayload(parsedBody.value, {
+    minSegments: DEFAULT_MIN_SEGMENTS,
+    maxSegments: DEFAULT_MAX_SEGMENTS,
+  })
+
+  if (!validation.ok) {
+    sendError(res, validation.status, validation.code, validation.message)
+    return
+  }
+
+  const { text, minSegments, maxSegments } = validation.value
   const payload: AnalyzeMapRequestPayload = {
     text,
     minSegments,
@@ -253,14 +362,14 @@ export default async function handler(req: ServerRequest, res: ServerResponse) {
 
   const apiKey = getEnvVariable('GEMINI_API_KEY')
   if (!apiKey) {
-    res.status(503).json({ error: 'GEMINI_API_KEY is not configured' })
+    sendError(res, 503, 'CONFIG_ERROR', 'GEMINI_API_KEY is not configured.')
     return
   }
 
   try {
     const modelAnalysis = await requestGeminiSegments(apiKey, payload)
     const normalized = normalizeGeneratedDrafts(modelAnalysis.segments, { minSegments, maxSegments }, text)
-    const topic = inferMainTopic(text, modelAnalysis.topic)
+    const topic = sanitizeTopicInput(inferMainTopic(text, modelAnalysis.topic))
 
     res.status(200).json({
       source: 'llm',
@@ -270,7 +379,7 @@ export default async function handler(req: ServerRequest, res: ServerResponse) {
     return
   } catch {
     const fallback = localAnalyzeMapText(text, { minSegments, maxSegments })
-    const topic = inferMainTopic(text)
+    const topic = sanitizeTopicInput(inferMainTopic(text))
     res.status(200).json({
       source: 'local',
       topic,

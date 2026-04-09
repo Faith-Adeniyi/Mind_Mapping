@@ -1,4 +1,5 @@
 import type { LayoutMode, MapDraft, Segment, SegmentTone } from '../types'
+import { sanitizeTopicInput } from './inputValidation'
 
 const STORAGE_KEY = 'clockrail:mvp:draft'
 const MIN_DESIRED_SEGMENTS = 3
@@ -56,7 +57,10 @@ function isMapDraft(value: unknown): value is MapDraft {
 
 export function loadDraft() {
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
+    // Legacy privacy cleanup: remove persisted cross-session drafts from previous localStorage usage.
+    window.localStorage.removeItem(STORAGE_KEY)
+
+    const raw = window.sessionStorage.getItem(STORAGE_KEY)
 
     if (!raw) {
       return null
@@ -69,6 +73,7 @@ export function loadDraft() {
 
     return {
       ...parsed,
+      topic: sanitizeTopicInput(parsed.topic),
       desiredSegmentCount: clampDesiredSegmentCount(
         typeof parsed.desiredSegmentCount === 'number' ? parsed.desiredSegmentCount : DEFAULT_DESIRED_SEGMENTS,
       ),
@@ -80,7 +85,11 @@ export function loadDraft() {
 
 export function saveDraft(draft: MapDraft) {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(draft))
+    const safeDraft: MapDraft = {
+      ...draft,
+      topic: sanitizeTopicInput(draft.topic),
+    }
+    window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(safeDraft))
   } catch {
     // Ignore persistence errors silently.
   }
@@ -88,7 +97,7 @@ export function saveDraft(draft: MapDraft) {
 
 export function clearDraft() {
   try {
-    window.localStorage.removeItem(STORAGE_KEY)
+    window.sessionStorage.removeItem(STORAGE_KEY)
   } catch {
     // Ignore persistence errors silently.
   }

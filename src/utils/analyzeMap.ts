@@ -3,6 +3,7 @@ import type {
   AnalyzeMapResponsePayload,
   GeneratedSegmentDraft,
 } from '../types'
+import { validateAnalyzeMapInput } from './inputValidation'
 import { inferMainTopic, localAnalyzeMapText, normalizeGeneratedDrafts, type SegmentAnalysisOptions } from './mapAnalysisCore'
 
 type AnalyzeMapOptions = SegmentAnalysisOptions & {
@@ -31,8 +32,13 @@ async function requestRemoteAnalysis(payload: AnalyzeMapRequestPayload): Promise
     })
 
     if (!response.ok) {
-      const errorPayload = (await response.json().catch(() => null)) as { error?: string } | null
-      const errorMessage = errorPayload?.error ? ` (${errorPayload.error})` : ''
+      const errorPayload = (await response.json().catch(() => null)) as
+        | { error?: string | { code?: string; message?: string } }
+        | null
+      const normalizedError = typeof errorPayload?.error === 'string'
+        ? errorPayload.error
+        : errorPayload?.error?.message
+      const errorMessage = normalizedError ? ` (${normalizedError})` : ''
       throw new Error(`Analysis endpoint failed: ${response.status}${errorMessage}`)
     }
 
@@ -55,21 +61,30 @@ async function requestRemoteAnalysis(payload: AnalyzeMapRequestPayload): Promise
 
 export async function analyzeMapText(text: string, options: AnalyzeMapOptions): Promise<AnalyzeMapResult> {
   const { minSegments, maxSegments, onStatusChange } = options
+  const validation = validateAnalyzeMapInput({ text, minSegments, maxSegments })
+
+  if (!validation.ok) {
+    throw new Error(validation.message)
+  }
 
   onStatusChange?.('Analyzing key points...')
 
   try {
     const remote = await requestRemoteAnalysis({
-      text,
-      minSegments,
-      maxSegments,
+      text: validation.value.text,
+      minSegments: validation.value.minSegments,
+      maxSegments: validation.value.maxSegments,
     })
 
-    const normalized = normalizeGeneratedDrafts(remote.segments, { minSegments, maxSegments }, text)
+    const normalized = normalizeGeneratedDrafts(
+      remote.segments,
+      { minSegments: validation.value.minSegments, maxSegments: validation.value.maxSegments },
+      validation.value.text,
+    )
 
     return {
       source: remote.source,
-      topic: inferMainTopic(text, remote.topic),
+      topic: inferMainTopic(validation.value.text, remote.topic),
       segments: normalized,
       note: remote.source === 'local'
         ? (remote.fallbackReason ?? 'Generated with local fallback analysis.')
@@ -78,12 +93,15 @@ export async function analyzeMapText(text: string, options: AnalyzeMapOptions): 
   } catch (error) {
     onStatusChange?.('Using local fallback analysis...')
 
-    const local = localAnalyzeMapText(text, { minSegments, maxSegments })
+    const local = localAnalyzeMapText(validation.value.text, {
+      minSegments: validation.value.minSegments,
+      maxSegments: validation.value.maxSegments,
+    })
     const message = error instanceof Error ? error.message : 'Unknown analysis error'
 
     return {
       source: 'local',
-      topic: inferMainTopic(text),
+      topic: inferMainTopic(validation.value.text),
       segments: local,
       note: `Generated with local fallback analysis. ${message}`,
     }
