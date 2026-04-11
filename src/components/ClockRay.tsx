@@ -7,7 +7,6 @@ type ClockRayProps = {
   topic: string
   segments: Segment[]
   activeSegmentId: string | null
-  isPrintPreparing?: boolean
   onSelectSegment: (segmentId: string) => void
 }
 
@@ -49,7 +48,7 @@ function getTitleScaleClass(title: string): TitleScaleClass {
   return 'title-scale-xlong'
 }
 
-export function ClockRay({ topic, segments, activeSegmentId, isPrintPreparing = false, onSelectSegment }: ClockRayProps) {
+export function ClockRay({ topic, segments, activeSegmentId, onSelectSegment }: ClockRayProps) {
   const stageRef = useRef<HTMLDivElement | null>(null)
   const [stageSize, setStageSize] = useState<StageSize>({ width: 960, height: 680 })
 
@@ -103,34 +102,6 @@ export function ClockRay({ topic, segments, activeSegmentId, isPrintPreparing = 
 
     return () => observer.disconnect()
   }, [measureStage])
-
-  useEffect(() => {
-    if (!isPrintPreparing) {
-      return undefined
-    }
-
-    let rafA = 0
-    let rafB = 0
-    let timeoutId: number | null = null
-
-    rafA = window.requestAnimationFrame(() => {
-      measureStage()
-      rafB = window.requestAnimationFrame(() => {
-        measureStage()
-        timeoutId = window.setTimeout(() => {
-          measureStage()
-        }, 60)
-      })
-    })
-
-    return () => {
-      window.cancelAnimationFrame(rafA)
-      window.cancelAnimationFrame(rafB)
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId)
-      }
-    }
-  }, [isPrintPreparing, measureStage])
 
   const positions = useMemo(
     () => computeClockLayout(segments, stageSize.width, stageSize.height),

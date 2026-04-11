@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import { AppShell } from './components/AppShell'
 import { ClockRay } from './components/ClockRay'
@@ -12,26 +12,13 @@ import { TONE_SEQUENCE } from './data/iconDefaults'
 import type { GeneratedSegmentDraft, MapDraft, PresentationState, Segment } from './types'
 import { analyzeMapText } from './utils/analyzeMap'
 import { assignIcon } from './utils/assignIcon'
-import { sanitizeTopicInput, validateGenerationInput } from './utils/inputValidation'
+import { DEFAULT_UI_SEGMENT_COUNT, normalizeUiSegmentCount, sanitizeTopicInput, validateGenerationInput } from './utils/inputValidation'
+import { downloadMapCardPdf, type PdfPaperSize } from './utils/exportMapPdf'
 import { createPreview } from './utils/segmentPreview'
 import { clearDraft, loadDraft, saveDraft } from './utils/storage'
 
 const DEFAULT_TOPIC = 'Project Presentation'
-const MIN_SEGMENTS = 3
-const MAX_SEGMENTS = 12
-const DEFAULT_SEGMENT_COUNT = 6
-const PRINT_FALLBACK_TIMEOUT_MS = 12000
-const PRINT_TRIGGER_DELAY_MS = 80
-
-type ExportPaperSize = 'a4' | 'a3'
-
-function clampSegmentCount(value: number) {
-  if (!Number.isFinite(value)) {
-    return DEFAULT_SEGMENT_COUNT
-  }
-
-  return Math.max(MIN_SEGMENTS, Math.min(MAX_SEGMENTS, Math.round(value)))
-}
+const DEFAULT_SEGMENT_COUNT = DEFAULT_UI_SEGMENT_COUNT
 
 function createDefaultDraft(): MapDraft {
   return {
@@ -45,25 +32,28 @@ function createDefaultDraft(): MapDraft {
 }
 
 function normalizeDraft(draft: MapDraft): MapDraft {
-  const normalizedCount = clampSegmentCount(
+  const normalizedCount = normalizeUiSegmentCount(
     Number.isFinite(draft.desiredSegmentCount) ? draft.desiredSegmentCount : DEFAULT_SEGMENT_COUNT,
+    DEFAULT_SEGMENT_COUNT,
   )
+  const baseDraft: MapDraft = {
+    ...draft,
+    desiredSegmentCount: normalizedCount,
+  }
 
   if (draft.segments.length === 0) {
     return {
-      ...draft,
-      desiredSegmentCount: normalizedCount,
+      ...baseDraft,
       activeSegmentId: null,
     }
   }
 
   if (draft.activeSegmentId && draft.segments.some((segment) => segment.id === draft.activeSegmentId)) {
-    return draft
+    return baseDraft
   }
 
   return {
-    ...draft,
-    desiredSegmentCount: normalizedCount,
+    ...baseDraft,
     activeSegmentId: draft.segments[0]?.id ?? null,
   }
 }
@@ -137,11 +127,11 @@ function App() {
   const [generationStatus, setGenerationStatus] = useState<string | null>(null)
   const [generationNote, setGenerationNote] = useState<string | null>(null)
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
-  const [isPrintPreparing, setIsPrintPreparing] = useState(false)
-  const [exportPaperSize, setExportPaperSize] = useState<ExportPaperSize>('a4')
+  const [isExportingPdf, setIsExportingPdf] = useState(false)
+  const [exportPaperSize, setExportPaperSize] = useState<PdfPaperSize>('a4')
   const [isSourceSectionOpen, setIsSourceSectionOpen] = useState(true)
   const [isEditorSectionOpen, setIsEditorSectionOpen] = useState(true)
-  const printFallbackTimeoutRef = useRef<number | null>(null)
+  const exportCaptureRef = useRef<HTMLDivElement | null>(null)
   const [presentation, setPresentation] = useState<PresentationState>({
     isOpen: false,
     index: 0,
@@ -156,7 +146,7 @@ function App() {
   const activeIndex = getActiveIndex(draft.segments, draft.activeSegmentId)
   const activeSegment = draft.segments[activeIndex] ?? null
   const hasSegments = draft.segments.length > 0
-  const desiredSegmentCount = clampSegmentCount(draft.desiredSegmentCount)
+  const desiredSegmentCount = normalizeUiSegmentCount(draft.desiredSegmentCount, DEFAULT_SEGMENT_COUNT)
   const generationValidation = validateGenerationInput({
     text: draft.rawText,
     desiredSegmentCount,
@@ -186,7 +176,6 @@ function App() {
       topic={draft.topic}
       segments={draft.segments}
       activeSegmentId={draft.activeSegmentId}
-      isPrintPreparing={isPrintPreparing}
       onSelectSegment={handleSelectSegment}
     />
   )
@@ -214,7 +203,7 @@ function App() {
   const handleGenerate = () => {
     const preflight = validateGenerationInput({
       text: draft.rawText,
-      desiredSegmentCount: clampSegmentCount(draft.desiredSegmentCount),
+      desiredSegmentCount: normalizeUiSegmentCount(draft.desiredSegmentCount, DEFAULT_SEGMENT_COUNT),
     })
 
     if (!preflight.ok) {
@@ -279,73 +268,11 @@ function App() {
     setGenerationStatus(null)
     setGenerationNote(null)
     setIsExportDialogOpen(false)
-    setIsPrintPreparing(false)
+    setIsExportingPdf(false)
   }
 
-  const clearPrintMode = useCallback(() => {
-    const root = document.documentElement
-
-    root.classList.remove('is-print-exporting')
-    root.removeAttribute('data-export-mode')
-    root.removeAttribute('data-export-paper')
-
-    if (printFallbackTimeoutRef.current !== null) {
-      window.clearTimeout(printFallbackTimeoutRef.current)
-      printFallbackTimeoutRef.current = null
-    }
-
-    setIsPrintPreparing(false)
-  }, [])
-
-  useEffect(() => {
-    const handleAfterPrint = () => {
-      clearPrintMode()
-    }
-
-    window.addEventListener('afterprint', handleAfterPrint)
-    return () => window.removeEventListener('afterprint', handleAfterPrint)
-  }, [clearPrintMode])
-
-  useEffect(() => {
-    if (!isPrintPreparing) {
-      return undefined
-    }
-
-    const root = document.documentElement
-    root.classList.add('is-print-exporting')
-    root.setAttribute('data-export-mode', 'map')
-    root.setAttribute('data-export-paper', exportPaperSize)
-
-    let timeoutId: number | null = null
-    const rafId = window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => {
-        timeoutId = window.setTimeout(() => {
-          window.print()
-        }, PRINT_TRIGGER_DELAY_MS)
-      })
-    })
-
-    printFallbackTimeoutRef.current = window.setTimeout(() => {
-      clearPrintMode()
-    }, PRINT_FALLBACK_TIMEOUT_MS)
-
-    return () => {
-      window.cancelAnimationFrame(rafId)
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId)
-      }
-    }
-  }, [clearPrintMode, exportPaperSize, isPrintPreparing])
-
-  useEffect(
-    () => () => {
-      clearPrintMode()
-    },
-    [clearPrintMode],
-  )
-
   const handleOpenExportDialog = () => {
-    if (!hasSegments) {
+    if (!hasSegments || isExportingPdf) {
       return
     }
 
@@ -354,12 +281,31 @@ function App() {
   }
 
   const handleConfirmExport = () => {
-    if (!hasSegments || isPrintPreparing) {
+    if (!hasSegments || isExportingPdf) {
       return
     }
 
     setIsExportDialogOpen(false)
-    setIsPrintPreparing(true)
+
+    const target = exportCaptureRef.current?.querySelector<HTMLElement>('.view-surface')
+    if (!target) {
+      setGenerationNote('PDF export failed. Map view not found.')
+      return
+    }
+
+    setIsExportingPdf(true)
+    setGenerationNote('Preparing PDF export...')
+
+    void (async () => {
+      try {
+        await downloadMapCardPdf(target, exportPaperSize)
+        setGenerationNote('PDF downloaded')
+      } catch {
+        setGenerationNote('PDF export failed. Please try again.')
+      } finally {
+        setIsExportingPdf(false)
+      }
+    })()
   }
 
   const handleOpenPresentation = () => {
@@ -464,7 +410,7 @@ function App() {
                 onDesiredSegmentCountChange={(value) =>
                   setDraft((current) => ({
                     ...current,
-                    desiredSegmentCount: clampSegmentCount(value),
+                    desiredSegmentCount: normalizeUiSegmentCount(value, DEFAULT_SEGMENT_COUNT),
                   }))
                 }
                 onGenerate={handleGenerate}
@@ -548,7 +494,7 @@ function App() {
         </aside>
 
         <section className="workspace__canvas">
-          <div className="print-export-scope">
+          <div className="print-export-scope" ref={exportCaptureRef}>
             {hasSegments ? (
               view
             ) : (
@@ -556,7 +502,7 @@ function App() {
                 <p className="panel-kicker">Allison's Memory ClockRay</p>
                 <h2>Generate your first Memory Clock</h2>
                 <p>
-                  Paste a speech, lecture, or project notes on the left. The app will segment it into 4-12 nodes and
+                  Paste a speech, lecture, or project notes on the left. The app will segment it into 3, 4, 6, 8, or 12 nodes and
                   render Clock, Grid, and Linear views in sync.
                 </p>
               </div>
@@ -603,14 +549,24 @@ function App() {
               </button>
             </div>
 
-            <p className="meta-text">Export prints only your current map view in a light, print-friendly style.</p>
+            <p className="meta-text">Download a PDF of your current map card with the live visual style and node positions.</p>
 
             <div className="panel-actions export-dialog__actions">
-              <button type="button" className="ghost-button" onClick={() => setIsExportDialogOpen(false)}>
+              <button
+                type="button"
+                className="ghost-button"
+                disabled={isExportingPdf}
+                onClick={() => setIsExportDialogOpen(false)}
+              >
                 Cancel
               </button>
-              <button type="button" className="primary-button" onClick={handleConfirmExport}>
-                Continue to Print
+              <button
+                type="button"
+                className="primary-button"
+                disabled={isExportingPdf}
+                onClick={handleConfirmExport}
+              >
+                {isExportingPdf ? 'Downloading...' : 'Download PDF'}
               </button>
             </div>
           </div>

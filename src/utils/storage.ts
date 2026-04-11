@@ -1,15 +1,9 @@
 import type { LayoutMode, MapDraft, Segment, SegmentTone } from '../types'
-import { sanitizeTopicInput } from './inputValidation'
+import { normalizeUiSegmentCount, sanitizeTopicInput } from './inputValidation'
 
 const STORAGE_KEY = 'clockray:mvp:draft'
 const LEGACY_STORAGE_KEY = 'clockrail:mvp:draft'
-const MIN_DESIRED_SEGMENTS = 3
-const MAX_DESIRED_SEGMENTS = 12
 const DEFAULT_DESIRED_SEGMENTS = 6
-
-function clampDesiredSegmentCount(value: number) {
-  return Math.max(MIN_DESIRED_SEGMENTS, Math.min(MAX_DESIRED_SEGMENTS, value))
-}
 
 function isLayoutMode(value: unknown): value is LayoutMode {
   return value === 'clock' || value === 'grid' || value === 'linear'
@@ -65,7 +59,7 @@ function parseDraft(raw: string) {
   return {
     ...parsed,
     topic: sanitizeTopicInput(parsed.topic),
-    desiredSegmentCount: clampDesiredSegmentCount(
+    desiredSegmentCount: normalizeUiSegmentCount(
       typeof parsed.desiredSegmentCount === 'number' ? parsed.desiredSegmentCount : DEFAULT_DESIRED_SEGMENTS,
     ),
   }

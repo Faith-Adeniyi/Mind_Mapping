@@ -4,6 +4,8 @@ export const MAX_UI_SEGMENTS = 12
 export const MIN_API_SEGMENTS = 1
 export const MAX_API_SEGMENTS = 24
 export const MAX_TOPIC_LENGTH = 80
+export const ALLOWED_UI_SEGMENT_COUNTS = [3, 4, 6, 8, 12] as const
+export const DEFAULT_UI_SEGMENT_COUNT = 6
 
 type ValidationFailure = {
   ok: false
@@ -21,6 +23,32 @@ type ValidationSuccess = {
 }
 
 export type ValidationResult = ValidationFailure | ValidationSuccess
+
+function fallbackSegmentCount(value?: number) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value
+  }
+
+  return DEFAULT_UI_SEGMENT_COUNT
+}
+
+export function normalizeUiSegmentCount(value: number, fallback = DEFAULT_UI_SEGMENT_COUNT) {
+  const base = Number.isFinite(value) ? value : fallbackSegmentCount(fallback)
+  const rounded = Math.round(base)
+
+  let nearest: number = ALLOWED_UI_SEGMENT_COUNTS[0] ?? DEFAULT_UI_SEGMENT_COUNT
+
+  for (const candidate of ALLOWED_UI_SEGMENT_COUNTS) {
+    const currentDistance = Math.abs(candidate - rounded)
+    const bestDistance = Math.abs(nearest - rounded)
+
+    if (currentDistance < bestDistance || (currentDistance === bestDistance && candidate < nearest)) {
+      nearest = candidate
+    }
+  }
+
+  return nearest
+}
 
 function hasUnsafeControlChars(value: string) {
   for (let index = 0; index < value.length; index += 1) {
@@ -132,6 +160,14 @@ export function validateGenerationInput(params: {
   text: string
   desiredSegmentCount: number
 }) {
+  if (!ALLOWED_UI_SEGMENT_COUNTS.includes(params.desiredSegmentCount as (typeof ALLOWED_UI_SEGMENT_COUNTS)[number])) {
+    return {
+      ok: false,
+      code: 'SEGMENT_COUNT_NOT_ALLOWED',
+      message: `Node count must be one of: ${ALLOWED_UI_SEGMENT_COUNTS.join(', ')}.`,
+    } as const
+  }
+
   return validateAnalyzeMapInput({
     text: params.text,
     minSegments: params.desiredSegmentCount,

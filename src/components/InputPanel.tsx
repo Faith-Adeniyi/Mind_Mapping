@@ -1,3 +1,5 @@
+import { ALLOWED_UI_SEGMENT_COUNTS } from '../utils/inputValidation'
+
 type InputPanelProps = {
   rawText: string
   charCount: number
@@ -42,23 +44,25 @@ export function InputPanel({
           className="field__control field__control--textarea"
           value={rawText}
           onChange={(event) => onRawTextChange(event.target.value)}
-          placeholder="Paste Text Material. Generation will split it into 4-12 memory segments."
+          placeholder="Paste Text Material. Generation will split it into 3, 4, 6, 8, or 12 memory segments."
           spellCheck={false}
         />
       </label>
 
       <label className="field">
-        <span className="field__label">Node Count (4-12)</span>
-        <input
-          type="number"
+        <span className="field__label">Node Count</span>
+        <select
           className="field__control"
-          min={4}
-          max={12}
-          step={2}
           value={desiredSegmentCount}
           disabled={isGenerating}
           onChange={(event) => onDesiredSegmentCountChange(Number(event.target.value))}
-        />
+        >
+          {ALLOWED_UI_SEGMENT_COUNTS.map((count) => (
+            <option key={count} value={count}>
+              {count}
+            </option>
+          ))}
+        </select>
       </label>
 
       <div className="panel-row">
