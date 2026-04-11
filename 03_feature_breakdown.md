@@ -1,4 +1,4 @@
-# Allison's Memory ClockRail — Feature Breakdown
+# Allison's Memory ClockRay — Feature Breakdown
 
 ## 1. Purpose of This Document
 
@@ -9,7 +9,7 @@ The purpose is to define:
 - how the feature should behave
 - what rules it must follow
 - what data it needs
-- how it supports the overall ClockRail experience
+- how it supports the overall ClockRay experience
 
 ---
 
@@ -64,7 +64,7 @@ Each segment should contain:
 
 ---
 
-## 4. Feature Group: ClockRail Visualization
+## 4. Feature Group: ClockRay Visualization
 
 ### Description
 This is the main visual interface of the app.
@@ -261,4 +261,4 @@ This is not required in the MVP, but it should remain a planned feature boundary
 
 ## 14. Summary
 
-The feature breakdown defines the behavior of each major part of the ClockRail app. The product depends on a strong pipeline from content input to segmentation, visualization, editing, and presentation. Each feature must support the goal of making text easier to remember and present visually.
+The feature breakdown defines the behavior of each major part of the ClockRay app. The product depends on a strong pipeline from content input to segmentation, visualization, editing, and presentation. Each feature must support the goal of making text easier to remember and present visually.

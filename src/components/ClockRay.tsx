@@ -3,7 +3,7 @@ import type { Segment } from '../types'
 import { computeClockLayout } from '../utils/layoutClock'
 import { IconGlyph } from './IconGlyph'
 
-type ClockRailProps = {
+type ClockRayProps = {
   topic: string
   segments: Segment[]
   activeSegmentId: string | null
@@ -49,7 +49,7 @@ function getTitleScaleClass(title: string): TitleScaleClass {
   return 'title-scale-xlong'
 }
 
-export function ClockRail({ topic, segments, activeSegmentId, isPrintPreparing = false, onSelectSegment }: ClockRailProps) {
+export function ClockRay({ topic, segments, activeSegmentId, isPrintPreparing = false, onSelectSegment }: ClockRayProps) {
   const stageRef = useRef<HTMLDivElement | null>(null)
   const [stageSize, setStageSize] = useState<StageSize>({ width: 960, height: 680 })
 
@@ -184,7 +184,7 @@ export function ClockRail({ topic, segments, activeSegmentId, isPrintPreparing =
         ref={stageRef}
         className={`clock-stage ${isDense ? 'clock-stage--dense' : ''}`}
         role="list"
-        aria-label="Allison's Memory ClockRail segment map"
+        aria-label="Allison's Memory ClockRay segment map"
         style={
           {
             '--clock-node-size': `${nodeDiameter}px`,

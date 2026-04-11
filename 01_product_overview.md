@@ -1,4 +1,4 @@
-# Allison's Memory ClockRail — Product Overview
+# Allison's Memory ClockRay — Product Overview
 
 ## 1. Product Vision
 
@@ -112,4 +112,4 @@ The product is successful if users can:
 
 ## 10. Summary
 
-ClockRail is a visual memory-mapping app that transforms long-form content into a circular cue system for easier recall and presentation. It combines note structuring, spatial memory, and visual anchors into a unique presentation-first interface.
+ClockRay is a visual memory-mapping app that transforms long-form content into a circular cue system for easier recall and presentation. It combines note structuring, spatial memory, and visual anchors into a unique presentation-first interface.

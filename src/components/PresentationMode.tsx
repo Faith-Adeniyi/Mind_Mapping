@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import type { LayoutMode, Segment } from '../types'
-import { ClockRail } from './ClockRail'
+import { ClockRay } from './ClockRay'
 import { GridView } from './GridView'
 import { IconGlyph } from './IconGlyph'
 import { LinearView } from './LinearView'
@@ -82,7 +82,7 @@ export function PresentationMode({
     }
 
     return (
-      <ClockRail
+      <ClockRay
         topic={topic}
         segments={segments}
         activeSegmentId={activeSegmentId}

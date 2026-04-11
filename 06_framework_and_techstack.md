@@ -1,8 +1,8 @@
-# Allison's Memory ClockRail — Framework and Tech Stack
+# Allison's Memory ClockRay — Framework and Tech Stack
 
 ## 1. Purpose of This Document
 
-This document defines the framework and technology stack used for the ClockRail project and explains why each choice fits the product.
+This document defines the framework and technology stack used for the ClockRay project and explains why each choice fits the product.
 
 It is intended to keep the implementation aligned with the product vision and to prevent unnecessary technology drift.
 
@@ -16,7 +16,7 @@ It is intended to keep the implementation aligned with the product vision and to
 - **Vite**
 
 ### Why This Choice Fits
-This stack is well suited for ClockRail because:
+This stack is well suited for ClockRay because:
 - it supports fast UI iteration
 - it works well for interactive single-page experiences
 - it gives strong typing for complex segment data
@@ -43,7 +43,7 @@ This stack will power:
 - gradient and glass-style visual treatment
 
 ### Why This Fits
-ClockRail needs a premium visual identity. A flexible CSS-based approach makes it easier to:
+ClockRay needs a premium visual identity. A flexible CSS-based approach makes it easier to:
 - create the dark presentation style
 - control the circular layout precisely
 - support responsive behavior
@@ -128,7 +128,7 @@ This model is simple, expressive, and easy to transform into the clock visualiza
 - optional future use of Framer Motion if richer motion is needed
 
 ### Why This Fits
-ClockRail needs motion, but the animation should remain light and clear. Simple motion is enough for:
+ClockRay needs motion, but the animation should remain light and clear. Simple motion is enough for:
 - segment emphasis
 - content reveal
 - presentation mode transitions
@@ -237,10 +237,10 @@ This gives a strong base for:
 
 ## 14. Final Recommendation
 
-Use React + TypeScript + Vite as the foundation, keep styling in CSS for precise control, and add supporting tools only when the product needs them. This keeps ClockRail fast, maintainable, and visually strong while preserving a clean path to future features.
+Use React + TypeScript + Vite as the foundation, keep styling in CSS for precise control, and add supporting tools only when the product needs them. This keeps ClockRay fast, maintainable, and visually strong while preserving a clean path to future features.
 
 ---
 
 ## 15. Summary
 
-The framework and tech stack for ClockRail should prioritize speed, clarity, and visual control. The current React + TypeScript + Vite setup is the right base for the product, and the rest of the stack should be added only when the product requirements justify it.
+The framework and tech stack for ClockRay should prioritize speed, clarity, and visual control. The current React + TypeScript + Vite setup is the right base for the product, and the rest of the stack should be added only when the product requirements justify it.

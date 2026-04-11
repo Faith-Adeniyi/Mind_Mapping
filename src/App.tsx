@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 import { AppShell } from './components/AppShell'
-import { ClockRail } from './components/ClockRail'
+import { ClockRay } from './components/ClockRay'
 import { EditorPanel } from './components/EditorPanel'
 import { GridView } from './components/GridView'
 import { InputPanel } from './components/InputPanel'
@@ -182,7 +182,7 @@ function App() {
   }
 
   let view = (
-    <ClockRail
+    <ClockRay
       topic={draft.topic}
       segments={draft.segments}
       activeSegmentId={draft.activeSegmentId}
@@ -553,7 +553,7 @@ function App() {
               view
             ) : (
               <div className="empty-canvas glass-panel">
-                <p className="panel-kicker">Allison's Memory ClockRail</p>
+                <p className="panel-kicker">Allison's Memory ClockRay</p>
                 <h2>Generate your first memory map</h2>
                 <p>
                   Paste a speech, lecture, or project notes on the left. The app will segment it into 3-12 nodes and

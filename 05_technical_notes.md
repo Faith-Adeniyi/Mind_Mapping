@@ -1,8 +1,8 @@
-# Allison's Memory ClockRail — Technical Notes
+# Allison's Memory ClockRay — Technical Notes
 
 ## 1. Purpose of This Document
 
-This document records the practical technical assumptions and implementation notes needed to build the ClockRail app in a clean, maintainable way.
+This document records the practical technical assumptions and implementation notes needed to build the ClockRay app in a clean, maintainable way.
 
 It is meant to support the transition from product documentation into actual implementation.
 
@@ -37,7 +37,7 @@ The app should be organized into:
 - utility functions for segmentation and layout calculations
 
 ### Why This Structure Works
-The ClockRail product has multiple modes and visual states. Separating the app into clear UI regions will make it easier to maintain and expand later.
+The ClockRay product has multiple modes and visual states. Separating the app into clear UI regions will make it easier to maintain and expand later.
 
 ---
 
@@ -90,7 +90,7 @@ The generated segments should be readable enough for presentation and memorable 
 
 ## 6. Layout and Visualization Notes
 
-### ClockRail Layout
+### ClockRay Layout
 The circular layout should use:
 - a center topic node
 - radial positioning of segments around the center
@@ -252,4 +252,4 @@ When backend work begins, a TypeScript-friendly server stack will likely be easi
 
 ## 15. Summary
 
-The ClockRail app is best implemented as a React + TypeScript frontend with clear component boundaries, local state for early versions, and a carefully managed circular layout. The technical design should prioritize clarity, memory support, and easy expansion into AI, export, and cloud features later.
+The ClockRay app is best implemented as a React + TypeScript frontend with clear component boundaries, local state for early versions, and a carefully managed circular layout. The technical design should prioritize clarity, memory support, and easy expansion into AI, export, and cloud features later.

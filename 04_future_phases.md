@@ -1,4 +1,4 @@
-# Allison's Memory ClockRail — Future Phases
+# Allison's Memory ClockRay — Future Phases
 
 ## 1. Purpose of This Document
 
@@ -22,7 +22,7 @@ The roadmap is organized into stages:
 ## 3. Phase 2 — Enhanced Visual Control
 
 ### Goals
-Phase 2 should make the ClockRail map more flexible and more visually expressive.
+Phase 2 should make the ClockRay map more flexible and more visually expressive.
 
 ### Features
 - drag-and-drop repositioning of segments
@@ -200,4 +200,4 @@ The suggested order for future growth is:
 
 ## 13. Summary
 
-The future phases expand ClockRail from a visual memory-mapping MVP into a more intelligent, personalized, and collaborative product. Each phase should be added only after the previous phase is stable enough to support it.
+The future phases expand ClockRay from a visual memory-mapping MVP into a more intelligent, personalized, and collaborative product. Each phase should be added only after the previous phase is stable enough to support it.

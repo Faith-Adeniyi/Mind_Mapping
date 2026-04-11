@@ -1,8 +1,8 @@
-# Allison's Memory ClockRail — Implementation Roadmap
+# Allison's Memory ClockRay — Implementation Roadmap
 
 ## 1. Sprint Objective
 
-Build the complete ClockRail web app as a deployable frontend product, excluding all AI integration.
+Build the complete ClockRay web app as a deployable frontend product, excluding all AI integration.
 
 This sprint should produce a polished, working app that:
 - accepts text input
@@ -63,7 +63,7 @@ Deliverables:
 - preview generation utility
 - layout position utility
 
-### Milestone 3 — ClockRail Visualization
+### Milestone 3 — ClockRay Visualization
 Goal: render the circular memory map.
 
 Deliverables:
@@ -284,7 +284,7 @@ Expected exports:
 
 ---
 
-## 4.12 `src/components/ClockRail.tsx`
+## 4.12 `src/components/ClockRay.tsx`
 Purpose:
 - render the circular segment visualization
 
@@ -295,7 +295,7 @@ Responsibilities:
 - support click selection
 
 Expected exports:
-- `ClockRail`
+- `ClockRay`
 
 ---
 
@@ -425,7 +425,7 @@ Recommended implementation sequence:
 7. `src/utils/layoutClock.ts`
 8. `src/utils/storage.ts`
 9. `src/components/SegmentCard.tsx`
-10. `src/components/ClockRail.tsx`
+10. `src/components/ClockRay.tsx`
 11. `src/components/InputPanel.tsx`
 12. `src/components/EditorPanel.tsx`
 13. `src/components/PresentationMode.tsx`

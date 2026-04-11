@@ -1,4 +1,4 @@
-# Allison's Memory ClockRail — MVP Breakdown
+# Allison's Memory ClockRay — MVP Breakdown
 
 ## 1. MVP Purpose
 
@@ -32,7 +32,7 @@ The user pastes a speech, lecture, presentation, or project note into the input 
 ### Step 2: Generate Segments
 The app breaks the text into a manageable number of content blocks.
 
-### Step 3: Visualize on ClockRail
+### Step 3: Visualize on ClockRay
 The blocks are arranged clockwise around the clock map.
 
 ### Step 4: Edit for Memory
@@ -58,7 +58,7 @@ Elements:
 - generate button
 - short instruction area
 
-### 4.2 ClockRail Visualization Screen
+### 4.2 ClockRay Visualization Screen
 Purpose:
 - show the generated segments around a circular layout
 
@@ -174,4 +174,4 @@ The MVP is successful if:
 
 ## 9. Summary
 
-The MVP is the smallest complete version of ClockRail that proves the concept. It should let users transform text into a clock-based memory map and use that map as a confident speaking aid.
+The MVP is the smallest complete version of ClockRay that proves the concept. It should let users transform text into a clock-based memory map and use that map as a confident speaking aid.

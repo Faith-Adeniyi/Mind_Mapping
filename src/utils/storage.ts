@@ -1,7 +1,8 @@
 import type { LayoutMode, MapDraft, Segment, SegmentTone } from '../types'
 import { sanitizeTopicInput } from './inputValidation'
 
-const STORAGE_KEY = 'clockrail:mvp:draft'
+const STORAGE_KEY = 'clockray:mvp:draft'
+const LEGACY_STORAGE_KEY = 'clockrail:mvp:draft'
 const MIN_DESIRED_SEGMENTS = 3
 const MAX_DESIRED_SEGMENTS = 12
 const DEFAULT_DESIRED_SEGMENTS = 6
@@ -55,29 +56,46 @@ function isMapDraft(value: unknown): value is MapDraft {
   )
 }
 
+function parseDraft(raw: string) {
+  const parsed: unknown = JSON.parse(raw)
+  if (!isMapDraft(parsed)) {
+    return null
+  }
+
+  return {
+    ...parsed,
+    topic: sanitizeTopicInput(parsed.topic),
+    desiredSegmentCount: clampDesiredSegmentCount(
+      typeof parsed.desiredSegmentCount === 'number' ? parsed.desiredSegmentCount : DEFAULT_DESIRED_SEGMENTS,
+    ),
+  }
+}
+
 export function loadDraft() {
   try {
     // Legacy privacy cleanup: remove persisted cross-session drafts from previous localStorage usage.
     window.localStorage.removeItem(STORAGE_KEY)
+    window.localStorage.removeItem(LEGACY_STORAGE_KEY)
 
     const raw = window.sessionStorage.getItem(STORAGE_KEY)
+    if (raw) {
+      return parseDraft(raw)
+    }
 
-    if (!raw) {
+    const legacyRaw = window.sessionStorage.getItem(LEGACY_STORAGE_KEY)
+    if (!legacyRaw) {
       return null
     }
 
-    const parsed: unknown = JSON.parse(raw)
-    if (!isMapDraft(parsed)) {
+    const migratedDraft = parseDraft(legacyRaw)
+    if (!migratedDraft) {
+      window.sessionStorage.removeItem(LEGACY_STORAGE_KEY)
       return null
     }
 
-    return {
-      ...parsed,
-      topic: sanitizeTopicInput(parsed.topic),
-      desiredSegmentCount: clampDesiredSegmentCount(
-        typeof parsed.desiredSegmentCount === 'number' ? parsed.desiredSegmentCount : DEFAULT_DESIRED_SEGMENTS,
-      ),
-    }
+    window.sessionStorage.setItem(STORAGE_KEY, legacyRaw)
+    window.sessionStorage.removeItem(LEGACY_STORAGE_KEY)
+    return migratedDraft
   } catch {
     return null
   }
@@ -98,6 +116,7 @@ export function saveDraft(draft: MapDraft) {
 export function clearDraft() {
   try {
     window.sessionStorage.removeItem(STORAGE_KEY)
+    window.sessionStorage.removeItem(LEGACY_STORAGE_KEY)
   } catch {
     // Ignore persistence errors silently.
   }
