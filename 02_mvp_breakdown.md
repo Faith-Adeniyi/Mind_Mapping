@@ -1,4 +1,4 @@
-# ClockRail / Mind Mapping App — MVP Breakdown
+# Allison's Memory ClockRail — MVP Breakdown
 
 ## 1. MVP Purpose
 

@@ -126,7 +126,7 @@ export function ClockRail({ topic, segments, activeSegmentId, onSelectSegment }:
         ref={stageRef}
         className={`clock-stage ${isDense ? 'clock-stage--dense' : ''}`}
         role="list"
-        aria-label="Allison Mind Mapping segment map"
+        aria-label="Allison's Memory ClockRail segment map"
         style={
           {
             '--clock-node-size': `${nodeDiameter}px`,

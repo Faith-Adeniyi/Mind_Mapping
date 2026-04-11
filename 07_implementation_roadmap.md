@@ -1,4 +1,4 @@
-# ClockRail / Mind Mapping App — Implementation Roadmap
+# Allison's Memory ClockRail — Implementation Roadmap
 
 ## 1. Sprint Objective
 

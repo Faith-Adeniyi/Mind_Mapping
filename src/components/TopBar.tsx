@@ -75,7 +75,7 @@ export function TopBar({ layoutMode, canPresent, onLayoutChange, onNewMap, onPre
           aria-hidden="true"
         />
         <div className="topbar__brand-copy">
-          <p className="topbar__logo">Allison Mind Mapping</p>
+          <p className="topbar__logo">Allison's Memory ClockRail</p>
           <p className="topbar__subtitle">Memory Workspace</p>
         </div>
       </div>

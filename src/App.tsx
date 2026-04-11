@@ -459,7 +459,7 @@ function App() {
             view
           ) : (
             <div className="empty-canvas glass-panel">
-              <p className="panel-kicker">Allison Mind Mapping</p>
+              <p className="panel-kicker">Allison's Memory ClockRail</p>
               <h2>Generate your first memory map</h2>
               <p>
                 Paste a speech, lecture, or project notes on the left. The app will segment it into 3-12 nodes and

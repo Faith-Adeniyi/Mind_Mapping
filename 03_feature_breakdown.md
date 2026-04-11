@@ -1,4 +1,4 @@
-# ClockRail / Mind Mapping App — Feature Breakdown
+# Allison's Memory ClockRail — Feature Breakdown
 
 ## 1. Purpose of This Document
 

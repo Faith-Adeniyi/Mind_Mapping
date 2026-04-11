@@ -1,4 +1,4 @@
-# ClockRail / Mind Mapping App — Product Overview
+# Allison's Memory ClockRail — Product Overview
 
 ## 1. Product Vision
 

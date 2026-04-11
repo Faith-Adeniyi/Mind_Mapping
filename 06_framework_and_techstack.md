@@ -1,4 +1,4 @@
-# ClockRail / Mind Mapping App — Framework and Tech Stack
+# Allison's Memory ClockRail — Framework and Tech Stack
 
 ## 1. Purpose of This Document
 

@@ -1,4 +1,4 @@
-# ClockRail / Mind Mapping App — Technical Notes
+# Allison's Memory ClockRail — Technical Notes
 
 ## 1. Purpose of This Document
 

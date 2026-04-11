@@ -1,4 +1,4 @@
-# ClockRail / Mind Mapping App — Future Phases
+# Allison's Memory ClockRail — Future Phases
 
 ## 1. Purpose of This Document
 
