@@ -554,9 +554,9 @@ function App() {
             ) : (
               <div className="empty-canvas glass-panel">
                 <p className="panel-kicker">Allison's Memory ClockRay</p>
-                <h2>Generate your first memory map</h2>
+                <h2>Generate your first Memory Clock</h2>
                 <p>
-                  Paste a speech, lecture, or project notes on the left. The app will segment it into 3-12 nodes and
+                  Paste a speech, lecture, or project notes on the left. The app will segment it into 4-12 nodes and
                   render Clock, Grid, and Linear views in sync.
                 </p>
               </div>

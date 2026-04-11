@@ -42,19 +42,20 @@ export function InputPanel({
           className="field__control field__control--textarea"
           value={rawText}
           onChange={(event) => onRawTextChange(event.target.value)}
-          placeholder="Paste long-form content. Generation will split it into 3-12 memory segments."
+          placeholder="Paste Text Material. 
+          Generation will split it into 4-12 memory segments."
           spellCheck={false}
         />
       </label>
 
       <label className="field">
-        <span className="field__label">Node Count (3-12)</span>
+        <span className="field__label">Node Count (4-12)</span>
         <input
           type="number"
           className="field__control"
-          min={3}
+          min={4}
           max={12}
-          step={1}
+          step={2}
           value={desiredSegmentCount}
           disabled={isGenerating}
           onChange={(event) => onDesiredSegmentCountChange(Number(event.target.value))}
@@ -76,7 +77,7 @@ export function InputPanel({
           onClick={onGenerate}
           disabled={isGenerating || !rawText.trim() || Boolean(isGenerateBlocked)}
         >
-          {isGenerating ? 'Generating...' : 'Generate Mind Map'}
+          {isGenerating ? 'Generating...' : 'Generate Memory Clock'}
         </button>
       </div>
     </section>
