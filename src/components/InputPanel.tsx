@@ -42,8 +42,7 @@ export function InputPanel({
           className="field__control field__control--textarea"
           value={rawText}
           onChange={(event) => onRawTextChange(event.target.value)}
-          placeholder="Paste Text Material. 
-          Generation will split it into 4-12 memory segments."
+          placeholder="Paste Text Material. Generation will split it into 4-12 memory segments."
           spellCheck={false}
         />
       </label>
