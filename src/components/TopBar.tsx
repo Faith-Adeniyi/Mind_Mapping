@@ -86,7 +86,7 @@ export function TopBar({
         />
         <div className="topbar__brand-copy">
           <p className="topbar__logo">Allison's Memory ClockRay</p>
-          <p className="topbar__subtitle">Memory Workspace</p>
+          <p className="topbar__subtitle">An innovative thinking tool for speaking extempore....</p>
         </div>
       </div>
 
