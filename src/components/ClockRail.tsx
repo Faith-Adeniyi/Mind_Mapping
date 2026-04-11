@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import type { Segment } from '../types'
 import { computeClockLayout } from '../utils/layoutClock'
 import { IconGlyph } from './IconGlyph'
@@ -7,6 +7,7 @@ type ClockRailProps = {
   topic: string
   segments: Segment[]
   activeSegmentId: string | null
+  isPrintPreparing?: boolean
   onSelectSegment: (segmentId: string) => void
 }
 
@@ -48,14 +49,34 @@ function getTitleScaleClass(title: string): TitleScaleClass {
   return 'title-scale-xlong'
 }
 
-export function ClockRail({ topic, segments, activeSegmentId, onSelectSegment }: ClockRailProps) {
+export function ClockRail({ topic, segments, activeSegmentId, isPrintPreparing = false, onSelectSegment }: ClockRailProps) {
   const stageRef = useRef<HTMLDivElement | null>(null)
   const [stageSize, setStageSize] = useState<StageSize>({ width: 960, height: 680 })
+
+  const measureStage = useCallback(() => {
+    if (!stageRef.current) {
+      return
+    }
+
+    const rect = stageRef.current.getBoundingClientRect()
+    const width = Math.max(1, rect.width)
+    const height = Math.max(1, rect.height)
+
+    setStageSize((current) => {
+      if (Math.abs(current.width - width) < 0.5 && Math.abs(current.height - height) < 0.5) {
+        return current
+      }
+
+      return { width, height }
+    })
+  }, [])
 
   useEffect(() => {
     if (!stageRef.current) {
       return undefined
     }
+
+    measureStage()
 
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0]
@@ -63,16 +84,53 @@ export function ClockRail({ topic, segments, activeSegmentId, onSelectSegment }:
         return
       }
 
-      setStageSize({
-        width: entry.contentRect.width,
-        height: entry.contentRect.height,
+      const contentWidth = Math.max(1, entry.contentRect.width)
+      const contentHeight = Math.max(1, entry.contentRect.height)
+
+      setStageSize((current) => {
+        if (Math.abs(current.width - contentWidth) < 0.5 && Math.abs(current.height - contentHeight) < 0.5) {
+          return current
+        }
+
+        return {
+          width: contentWidth,
+          height: contentHeight,
+        }
       })
     })
 
     observer.observe(stageRef.current)
 
     return () => observer.disconnect()
-  }, [])
+  }, [measureStage])
+
+  useEffect(() => {
+    if (!isPrintPreparing) {
+      return undefined
+    }
+
+    let rafA = 0
+    let rafB = 0
+    let timeoutId: number | null = null
+
+    rafA = window.requestAnimationFrame(() => {
+      measureStage()
+      rafB = window.requestAnimationFrame(() => {
+        measureStage()
+        timeoutId = window.setTimeout(() => {
+          measureStage()
+        }, 60)
+      })
+    })
+
+    return () => {
+      window.cancelAnimationFrame(rafA)
+      window.cancelAnimationFrame(rafB)
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
+    }
+  }, [isPrintPreparing, measureStage])
 
   const positions = useMemo(
     () => computeClockLayout(segments, stageSize.width, stageSize.height),

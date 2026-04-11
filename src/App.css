@@ -1565,6 +1565,143 @@
   }
 }
 
+:root {
+  --print-page-width: 210mm;
+  --print-page-height: 297mm;
+  --print-page-margin: 10mm;
+}
+
+html[data-export-paper='a4'] {
+  --print-page-width: 210mm;
+  --print-page-height: 297mm;
+  --print-page-margin: 10mm;
+}
+
+html[data-export-paper='a3'] {
+  --print-page-width: 297mm;
+  --print-page-height: 420mm;
+  --print-page-margin: 12mm;
+}
+
+html.is-print-exporting {
+  --print-content-width: calc(var(--print-page-width) - (var(--print-page-margin) * 2));
+  --print-content-height: calc(var(--print-page-height) - (var(--print-page-margin) * 2));
+  --print-map-size: min(calc(var(--print-content-width) - 10mm), calc(var(--print-content-height) - 34mm));
+}
+
+html.is-print-exporting body {
+  background: #e9edf5;
+}
+
+html.is-print-exporting .app-shell__nebula,
+html.is-print-exporting .app-shell__grain,
+html.is-print-exporting .topbar,
+html.is-print-exporting .workspace__sidebar,
+html.is-print-exporting .status-rail,
+html.is-print-exporting .presentation-overlay,
+html.is-print-exporting .export-dialog-backdrop,
+html.is-print-exporting .export-dialog {
+  display: none !important;
+}
+
+html.is-print-exporting .app-shell,
+html.is-print-exporting .app-shell__content,
+html.is-print-exporting .workspace,
+html.is-print-exporting .workspace__canvas,
+html.is-print-exporting .print-export-scope {
+  min-height: 0 !important;
+}
+
+html.is-print-exporting .app-shell__content {
+  padding: 0 !important;
+  display: grid;
+  place-items: center;
+}
+
+html.is-print-exporting .workspace {
+  display: block !important;
+  width: var(--print-content-width);
+}
+
+html.is-print-exporting .workspace__canvas {
+  display: grid !important;
+  gap: 0 !important;
+  place-items: center;
+}
+
+html.is-print-exporting .print-export-scope {
+  width: var(--print-content-width);
+  height: var(--print-content-height);
+  display: grid;
+  place-items: center;
+  margin-inline: auto;
+}
+
+html.is-print-exporting .view-surface,
+html.is-print-exporting .empty-canvas {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-content: stretch;
+  background: #ffffff !important;
+  color: #0f1726 !important;
+  border: 1px solid #d7deea;
+  box-shadow: none !important;
+  padding: 7mm !important;
+}
+
+html.is-print-exporting .clock-stage {
+  width: var(--print-map-size);
+  height: var(--print-map-size);
+  min-height: 0 !important;
+  margin-inline: auto;
+  border: 1px solid #d7deea;
+  background:
+    radial-gradient(circle at center, rgba(110, 170, 235, 0.12), transparent 52%),
+    rgba(244, 248, 255, 0.92) !important;
+}
+
+html.is-print-exporting .panel-kicker,
+html.is-print-exporting .meta-text,
+html.is-print-exporting .field__label,
+html.is-print-exporting .clock-node__index,
+html.is-print-exporting .clock-hub p,
+html.is-print-exporting .clock-hub span,
+html.is-print-exporting .grid-node__index,
+html.is-print-exporting .grid-node__preview,
+html.is-print-exporting .linear-card p {
+  color: #52617a !important;
+}
+
+html.is-print-exporting .clock-hub,
+html.is-print-exporting .clock-node,
+html.is-print-exporting .grid-node,
+html.is-print-exporting .linear-card,
+html.is-print-exporting .linear-marker {
+  box-shadow: none !important;
+  border: 1px solid #d0daeb;
+  color: #0f1726 !important;
+  background: #f5f8ff !important;
+}
+
+html.is-print-exporting .clock-connector {
+  background-image: linear-gradient(to right, #8fa0bb 50%, transparent 50%) !important;
+}
+
+html.is-print-exporting .clock-connector.is-active {
+  background: #3e8ef1 !important;
+  box-shadow: none !important;
+}
+
+html.is-print-exporting .tone-primary,
+html.is-print-exporting .tone-secondary,
+html.is-print-exporting .tone-tertiary,
+html.is-print-exporting .tone-alert,
+html.is-print-exporting .tone-neutral {
+  background: #f5f8ff !important;
+}
+
 @media print {
   @page export-a4 {
     size: A4 portrait;
@@ -1576,8 +1713,19 @@
     margin: 12mm;
   }
 
+  html {
+    --print-content-width: calc(var(--print-page-width) - (var(--print-page-margin) * 2));
+    --print-content-height: calc(var(--print-page-height) - (var(--print-page-margin) * 2));
+    --print-map-size: min(calc(var(--print-content-width) - 10mm), calc(var(--print-content-height) - 34mm));
+  }
+
   .print-export-scope {
     page: export-a4;
+    width: var(--print-content-width);
+    height: var(--print-content-height);
+    display: grid;
+    place-items: center;
+    margin-inline: auto;
   }
 
   html[data-export-paper='a3'] .print-export-scope {
@@ -1610,7 +1758,6 @@
   .workspace__canvas,
   .print-export-scope {
     min-height: 0 !important;
-    height: auto !important;
   }
 
   .app-shell__content {
@@ -1622,11 +1769,18 @@
   }
 
   .workspace__canvas {
-    display: block !important;
+    display: grid !important;
+    place-items: center;
+    gap: 0 !important;
   }
 
   .view-surface,
   .empty-canvas {
+    width: 100%;
+    height: 100%;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    align-content: stretch;
     background: #ffffff !important;
     color: #0f1726 !important;
     border: 1px solid #d7deea;
@@ -1648,8 +1802,8 @@
   }
 
   .clock-stage {
-    width: min(100%, 175mm);
-    aspect-ratio: 1 / 1;
+    width: var(--print-map-size);
+    height: var(--print-map-size);
     min-height: 0 !important;
     margin-inline: auto;
     border: 1px solid #d7deea;

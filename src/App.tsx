@@ -21,6 +21,7 @@ const MIN_SEGMENTS = 3
 const MAX_SEGMENTS = 12
 const DEFAULT_SEGMENT_COUNT = 6
 const PRINT_FALLBACK_TIMEOUT_MS = 12000
+const PRINT_TRIGGER_DELAY_MS = 80
 
 type ExportPaperSize = 'a4' | 'a3'
 
@@ -185,6 +186,7 @@ function App() {
       topic={draft.topic}
       segments={draft.segments}
       activeSegmentId={draft.activeSegmentId}
+      isPrintPreparing={isPrintPreparing}
       onSelectSegment={handleSelectSegment}
     />
   )
@@ -314,9 +316,12 @@ function App() {
     root.setAttribute('data-export-mode', 'map')
     root.setAttribute('data-export-paper', exportPaperSize)
 
+    let timeoutId: number | null = null
     const rafId = window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
-        window.print()
+        timeoutId = window.setTimeout(() => {
+          window.print()
+        }, PRINT_TRIGGER_DELAY_MS)
       })
     })
 
@@ -326,6 +331,9 @@ function App() {
 
     return () => {
       window.cancelAnimationFrame(rafId)
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId)
+      }
     }
   }, [clearPrintMode, exportPaperSize, isPrintPreparing])
 
