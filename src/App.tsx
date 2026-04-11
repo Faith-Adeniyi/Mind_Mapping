@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 import { AppShell } from './components/AppShell'
 import { ClockRail } from './components/ClockRail'
@@ -20,6 +20,9 @@ const DEFAULT_TOPIC = 'Project Presentation'
 const MIN_SEGMENTS = 3
 const MAX_SEGMENTS = 12
 const DEFAULT_SEGMENT_COUNT = 6
+const PRINT_FALLBACK_TIMEOUT_MS = 12000
+
+type ExportPaperSize = 'a4' | 'a3'
 
 function clampSegmentCount(value: number) {
   if (!Number.isFinite(value)) {
@@ -132,8 +135,12 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationStatus, setGenerationStatus] = useState<string | null>(null)
   const [generationNote, setGenerationNote] = useState<string | null>(null)
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
+  const [isPrintPreparing, setIsPrintPreparing] = useState(false)
+  const [exportPaperSize, setExportPaperSize] = useState<ExportPaperSize>('a4')
   const [isSourceSectionOpen, setIsSourceSectionOpen] = useState(true)
   const [isEditorSectionOpen, setIsEditorSectionOpen] = useState(true)
+  const printFallbackTimeoutRef = useRef<number | null>(null)
   const [presentation, setPresentation] = useState<PresentationState>({
     isOpen: false,
     index: 0,
@@ -269,6 +276,82 @@ function App() {
     setIsGenerating(false)
     setGenerationStatus(null)
     setGenerationNote(null)
+    setIsExportDialogOpen(false)
+    setIsPrintPreparing(false)
+  }
+
+  const clearPrintMode = useCallback(() => {
+    const root = document.documentElement
+
+    root.classList.remove('is-print-exporting')
+    root.removeAttribute('data-export-mode')
+    root.removeAttribute('data-export-paper')
+
+    if (printFallbackTimeoutRef.current !== null) {
+      window.clearTimeout(printFallbackTimeoutRef.current)
+      printFallbackTimeoutRef.current = null
+    }
+
+    setIsPrintPreparing(false)
+  }, [])
+
+  useEffect(() => {
+    const handleAfterPrint = () => {
+      clearPrintMode()
+    }
+
+    window.addEventListener('afterprint', handleAfterPrint)
+    return () => window.removeEventListener('afterprint', handleAfterPrint)
+  }, [clearPrintMode])
+
+  useEffect(() => {
+    if (!isPrintPreparing) {
+      return undefined
+    }
+
+    const root = document.documentElement
+    root.classList.add('is-print-exporting')
+    root.setAttribute('data-export-mode', 'map')
+    root.setAttribute('data-export-paper', exportPaperSize)
+
+    const rafId = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.print()
+      })
+    })
+
+    printFallbackTimeoutRef.current = window.setTimeout(() => {
+      clearPrintMode()
+    }, PRINT_FALLBACK_TIMEOUT_MS)
+
+    return () => {
+      window.cancelAnimationFrame(rafId)
+    }
+  }, [clearPrintMode, exportPaperSize, isPrintPreparing])
+
+  useEffect(
+    () => () => {
+      clearPrintMode()
+    },
+    [clearPrintMode],
+  )
+
+  const handleOpenExportDialog = () => {
+    if (!hasSegments) {
+      return
+    }
+
+    setExportPaperSize('a4')
+    setIsExportDialogOpen(true)
+  }
+
+  const handleConfirmExport = () => {
+    if (!hasSegments || isPrintPreparing) {
+      return
+    }
+
+    setIsExportDialogOpen(false)
+    setIsPrintPreparing(true)
   }
 
   const handleOpenPresentation = () => {
@@ -338,9 +421,11 @@ function App() {
       <TopBar
         layoutMode={draft.layoutMode}
         canPresent={hasSegments}
+        canExport={hasSegments}
         onLayoutChange={(layoutMode) => setDraft((current) => ({ ...current, layoutMode }))}
         onNewMap={handleReset}
         onPresent={handleOpenPresentation}
+        onExportPdf={handleOpenExportDialog}
       />
 
       <main className="workspace">
@@ -455,18 +540,20 @@ function App() {
         </aside>
 
         <section className="workspace__canvas">
-          {hasSegments ? (
-            view
-          ) : (
-            <div className="empty-canvas glass-panel">
-              <p className="panel-kicker">Allison's Memory ClockRail</p>
-              <h2>Generate your first memory map</h2>
-              <p>
-                Paste a speech, lecture, or project notes on the left. The app will segment it into 3-12 nodes and
-                render Clock, Grid, and Linear views in sync.
-              </p>
-            </div>
-          )}
+          <div className="print-export-scope">
+            {hasSegments ? (
+              view
+            ) : (
+              <div className="empty-canvas glass-panel">
+                <p className="panel-kicker">Allison's Memory ClockRail</p>
+                <h2>Generate your first memory map</h2>
+                <p>
+                  Paste a speech, lecture, or project notes on the left. The app will segment it into 3-12 nodes and
+                  render Clock, Grid, and Linear views in sync.
+                </p>
+              </div>
+            )}
+          </div>
 
           <div className="status-rail glass-panel">
             <span>{hasSegments ? `Segments: ${draft.segments.length}` : 'No segments generated'}</span>
@@ -475,6 +562,52 @@ function App() {
           </div>
         </section>
       </main>
+
+      {isExportDialogOpen ? (
+        <>
+          <div className="export-dialog-backdrop" onClick={() => setIsExportDialogOpen(false)} aria-hidden="true" />
+          <div className="export-dialog glass-panel" role="dialog" aria-modal="true" aria-label="Export PDF">
+            <div className="export-dialog__head">
+              <p className="panel-kicker">Export PDF</p>
+              <h3>Choose paper size</h3>
+            </div>
+
+            <div className="export-size-options" role="radiogroup" aria-label="Paper size">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={exportPaperSize === 'a4'}
+                className={`export-size-option ${exportPaperSize === 'a4' ? 'is-active' : ''}`}
+                onClick={() => setExportPaperSize('a4')}
+              >
+                <strong>A4</strong>
+                <span>Portrait</span>
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={exportPaperSize === 'a3'}
+                className={`export-size-option ${exportPaperSize === 'a3' ? 'is-active' : ''}`}
+                onClick={() => setExportPaperSize('a3')}
+              >
+                <strong>A3</strong>
+                <span>Portrait</span>
+              </button>
+            </div>
+
+            <p className="meta-text">Export prints only your current map view in a light, print-friendly style.</p>
+
+            <div className="panel-actions export-dialog__actions">
+              <button type="button" className="ghost-button" onClick={() => setIsExportDialogOpen(false)}>
+                Cancel
+              </button>
+              <button type="button" className="primary-button" onClick={handleConfirmExport}>
+                Continue to Print
+              </button>
+            </div>
+          </div>
+        </>
+      ) : null}
 
       <PresentationMode
         isOpen={presentation.isOpen}

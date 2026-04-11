@@ -4,9 +4,11 @@ import type { LayoutMode } from '../types'
 type TopBarProps = {
   layoutMode: LayoutMode
   canPresent: boolean
+  canExport: boolean
   onLayoutChange: (mode: LayoutMode) => void
   onNewMap: () => void
   onPresent: () => void
+  onExportPdf: () => void
 }
 
 const VIEW_OPTIONS: Array<{ mode: LayoutMode; label: string }> = [
@@ -15,7 +17,15 @@ const VIEW_OPTIONS: Array<{ mode: LayoutMode; label: string }> = [
   { mode: 'linear', label: 'Linear' },
 ]
 
-export function TopBar({ layoutMode, canPresent, onLayoutChange, onNewMap, onPresent }: TopBarProps) {
+export function TopBar({
+  layoutMode,
+  canPresent,
+  canExport,
+  onLayoutChange,
+  onNewMap,
+  onPresent,
+  onExportPdf,
+}: TopBarProps) {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
   const moreMenuRef = useRef<HTMLDivElement | null>(null)
 
@@ -104,12 +114,11 @@ export function TopBar({ layoutMode, canPresent, onLayoutChange, onNewMap, onPre
         </button>
         <button
           type="button"
-          className="ghost-button ghost-button--disabled topbar__action-export-desktop"
-          disabled
-          aria-disabled="true"
+          className="ghost-button topbar__action-export-desktop"
+          onClick={onExportPdf}
+          disabled={!canExport}
         >
           Export PDF
-          <span className="soon-pill">Coming soon</span>
         </button>
         <div className="topbar__more" ref={moreMenuRef}>
           <button
@@ -125,13 +134,15 @@ export function TopBar({ layoutMode, canPresent, onLayoutChange, onNewMap, onPre
             <div className="topbar__more-menu" role="menu" aria-label="More actions">
               <button
                 type="button"
-                className="ghost-button ghost-button--disabled topbar__more-item"
+                className="ghost-button topbar__more-item"
                 role="menuitem"
-                disabled
-                aria-disabled="true"
+                disabled={!canExport}
+                onClick={() => {
+                  setIsMoreMenuOpen(false)
+                  onExportPdf()
+                }}
               >
                 Export PDF
-                <span className="soon-pill">Coming soon</span>
               </button>
             </div>
           ) : null}

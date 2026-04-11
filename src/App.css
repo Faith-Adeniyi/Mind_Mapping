@@ -256,6 +256,79 @@
   min-width: 0;
 }
 
+.print-export-scope {
+  min-width: 0;
+}
+
+.export-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 74;
+  background: rgba(4, 7, 13, 0.62);
+}
+
+.export-dialog {
+  position: fixed;
+  z-index: 75;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(92vw, 420px);
+  border-radius: var(--radius-xl);
+  background: rgba(12, 17, 28, 0.98);
+  border: 1px solid rgba(105, 218, 255, 0.22);
+  padding: 0.95rem;
+  display: grid;
+  gap: 0.72rem;
+}
+
+.export-dialog__head {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.export-dialog__head h3 {
+  font-family: 'Manrope', sans-serif;
+  font-size: 1.04rem;
+}
+
+.export-size-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.export-size-option {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  padding: 0.72rem;
+  display: grid;
+  gap: 0.2rem;
+  text-align: left;
+}
+
+.export-size-option strong {
+  font-size: 1rem;
+}
+
+.export-size-option span {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.export-size-option.is-active {
+  border-color: rgba(105, 218, 255, 0.5);
+  background: linear-gradient(135deg, rgba(105, 218, 255, 0.18), rgba(184, 132, 255, 0.16));
+}
+
+.export-dialog__actions {
+  justify-content: flex-end;
+}
+
 .sidebar-section {
   display: grid;
   gap: 0.55rem;
@@ -1484,5 +1557,132 @@
     box-shadow: 0 28px 48px rgba(0, 0, 0, 0.5);
     padding: 0.62rem;
     gap: 0.45rem;
+  }
+
+  .export-dialog {
+    width: min(94vw, 420px);
+    padding: 0.82rem;
+  }
+}
+
+@media print {
+  @page export-a4 {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  @page export-a3 {
+    size: A3 portrait;
+    margin: 12mm;
+  }
+
+  .print-export-scope {
+    page: export-a4;
+  }
+
+  html[data-export-paper='a3'] .print-export-scope {
+    page: export-a3;
+  }
+
+  :root {
+    color: #0f1726;
+    background: #ffffff;
+  }
+
+  body {
+    background: #ffffff;
+  }
+
+  .app-shell__nebula,
+  .app-shell__grain,
+  .topbar,
+  .workspace__sidebar,
+  .status-rail,
+  .presentation-overlay,
+  .export-dialog-backdrop,
+  .export-dialog {
+    display: none !important;
+  }
+
+  .app-shell,
+  .app-shell__content,
+  .workspace,
+  .workspace__canvas,
+  .print-export-scope {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  .app-shell__content {
+    padding: 0 !important;
+  }
+
+  .workspace {
+    display: block !important;
+  }
+
+  .workspace__canvas {
+    display: block !important;
+  }
+
+  .view-surface,
+  .empty-canvas {
+    background: #ffffff !important;
+    color: #0f1726 !important;
+    border: 1px solid #d7deea;
+    box-shadow: none !important;
+    padding: 7mm !important;
+    break-inside: avoid;
+  }
+
+  .panel-kicker,
+  .meta-text,
+  .field__label,
+  .clock-node__index,
+  .clock-hub p,
+  .clock-hub span,
+  .grid-node__index,
+  .grid-node__preview,
+  .linear-card p {
+    color: #52617a !important;
+  }
+
+  .clock-stage {
+    width: min(100%, 175mm);
+    aspect-ratio: 1 / 1;
+    min-height: 0 !important;
+    margin-inline: auto;
+    border: 1px solid #d7deea;
+    background:
+      radial-gradient(circle at center, rgba(110, 170, 235, 0.12), transparent 52%),
+      rgba(244, 248, 255, 0.92) !important;
+  }
+
+  .clock-hub,
+  .clock-node,
+  .grid-node,
+  .linear-card,
+  .linear-marker {
+    box-shadow: none !important;
+    border: 1px solid #d0daeb;
+    color: #0f1726 !important;
+    background: #f5f8ff !important;
+  }
+
+  .clock-connector {
+    background-image: linear-gradient(to right, #8fa0bb 50%, transparent 50%) !important;
+  }
+
+  .clock-connector.is-active {
+    background: #3e8ef1 !important;
+    box-shadow: none !important;
+  }
+
+  .tone-primary,
+  .tone-secondary,
+  .tone-tertiary,
+  .tone-alert,
+  .tone-neutral {
+    background: #f5f8ff !important;
   }
 }
