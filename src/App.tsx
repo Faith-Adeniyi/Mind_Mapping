@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { flushSync } from 'react-dom'
 import './App.css'
 import { AppShell } from './components/AppShell'
 import { ClockRay } from './components/ClockRay'
@@ -6,9 +7,10 @@ import { EditorPanel } from './components/EditorPanel'
 import { GridView } from './components/GridView'
 import { InputPanel } from './components/InputPanel'
 import { LinearView } from './components/LinearView'
-import { PresentationMode } from './components/PresentationMode'
+import { PresentationMode, type PresentationModeHandle } from './components/PresentationMode'
 import { TopBar } from './components/TopBar'
 import { TONE_SEQUENCE } from './data/iconDefaults'
+import { useManagedFullscreen } from './hooks/useManagedFullscreen'
 import type { GeneratedSegmentDraft, MapDraft, PresentationState, Segment } from './types'
 import { analyzeMapText } from './utils/analyzeMap'
 import { assignIcon } from './utils/assignIcon'
@@ -132,21 +134,45 @@ function App() {
   const [isSourceSectionOpen, setIsSourceSectionOpen] = useState(true)
   const [isEditorSectionOpen, setIsEditorSectionOpen] = useState(true)
   const exportCaptureRef = useRef<HTMLDivElement | null>(null)
+  const mapSurfaceRef = useRef<HTMLElement | null>(null)
+  const presentationModeRef = useRef<PresentationModeHandle | null>(null)
   const [presentation, setPresentation] = useState<PresentationState>({
     isOpen: false,
     index: 0,
     isPlaying: false,
     startedAt: null,
+    mode: 'standard',
   })
+  const [isCompactViewport, setIsCompactViewport] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth <= 720 : false,
+  )
 
   useEffect(() => {
     saveDraft(draft)
   }, [draft])
 
+  useEffect(() => {
+    const updateViewportState = () => {
+      setIsCompactViewport(window.innerWidth <= 720)
+    }
+
+    updateViewportState()
+    window.addEventListener('resize', updateViewportState)
+    return () => window.removeEventListener('resize', updateViewportState)
+  }, [])
+
   const activeIndex = getActiveIndex(draft.segments, draft.activeSegmentId)
   const activeSegment = draft.segments[activeIndex] ?? null
   const hasSegments = draft.segments.length > 0
   const desiredSegmentCount = normalizeUiSegmentCount(draft.desiredSegmentCount, DEFAULT_SEGMENT_COUNT)
+  const {
+    isFullscreen,
+    isFullscreenSupported,
+    toggleFullscreen,
+  } = useManagedFullscreen({
+    targetRef: mapSurfaceRef,
+    enabled: hasSegments && !presentation.isOpen,
+  })
   const generationValidation = validateGenerationInput({
     text: draft.rawText,
     desiredSegmentCount,
@@ -177,6 +203,11 @@ function App() {
       segments={draft.segments}
       activeSegmentId={draft.activeSegmentId}
       onSelectSegment={handleSelectSegment}
+      surfaceRef={mapSurfaceRef}
+      isCompact={isCompactViewport}
+      isFullscreen={isFullscreen}
+      isFullscreenSupported={isFullscreenSupported}
+      onToggleFullscreen={() => void toggleFullscreen()}
     />
   )
 
@@ -187,6 +218,11 @@ function App() {
         segments={draft.segments}
         activeSegmentId={draft.activeSegmentId}
         onSelectSegment={handleSelectSegment}
+        surfaceRef={mapSurfaceRef}
+        isCompact={isCompactViewport}
+        isFullscreen={isFullscreen}
+        isFullscreenSupported={isFullscreenSupported}
+        onToggleFullscreen={() => void toggleFullscreen()}
       />
     )
   } else if (draft.layoutMode === 'linear') {
@@ -196,6 +232,11 @@ function App() {
         segments={draft.segments}
         activeSegmentId={draft.activeSegmentId}
         onSelectSegment={handleSelectSegment}
+        surfaceRef={mapSurfaceRef}
+        isCompact={isCompactViewport}
+        isFullscreen={isFullscreen}
+        isFullscreenSupported={isFullscreenSupported}
+        onToggleFullscreen={() => void toggleFullscreen()}
       />
     )
   }
@@ -243,6 +284,7 @@ function App() {
           index: 0,
           isPlaying: false,
           startedAt: null,
+          mode: 'standard',
         }))
 
         setGenerationNote(analysis.note ?? 'Map generated')
@@ -263,6 +305,7 @@ function App() {
       index: 0,
       isPlaying: false,
       startedAt: null,
+      mode: 'standard',
     })
     setIsGenerating(false)
     setGenerationStatus(null)
@@ -308,7 +351,7 @@ function App() {
     })()
   }
 
-  const handleOpenPresentation = () => {
+  const handleOpenPresentation = (mode: PresentationState['mode']) => {
     if (!hasSegments) {
       return
     }
@@ -318,7 +361,20 @@ function App() {
       index: activeIndex,
       isPlaying: false,
       startedAt: Date.now(),
+      mode,
     })
+  }
+
+  const handleOpenStandardPresentation = () => {
+    handleOpenPresentation('standard')
+  }
+
+  const handleOpenCompanionPresentation = () => {
+    flushSync(() => {
+      handleOpenPresentation('companion')
+    })
+
+    void presentationModeRef.current?.enterFullscreen()
   }
 
   const handleClosePresentation = () => {
@@ -378,7 +434,8 @@ function App() {
         canExport={hasSegments}
         onLayoutChange={(layoutMode) => setDraft((current) => ({ ...current, layoutMode }))}
         onNewMap={handleReset}
-        onPresent={handleOpenPresentation}
+        onPresent={handleOpenStandardPresentation}
+        onCompanion={handleOpenCompanionPresentation}
         onExportPdf={handleOpenExportDialog}
       />
 
@@ -574,12 +631,15 @@ function App() {
       ) : null}
 
       <PresentationMode
+        ref={presentationModeRef}
         isOpen={presentation.isOpen}
         topic={draft.topic}
         layoutMode={draft.layoutMode}
         segments={draft.segments}
         activeSegmentId={draft.activeSegmentId}
         currentIndex={presentation.isOpen ? activeIndex : presentation.index}
+        mode={presentation.mode}
+        isCompact={isCompactViewport}
         onClose={handleClosePresentation}
         onSelectSegment={handleSelectSegment}
         onNext={handleNext}
