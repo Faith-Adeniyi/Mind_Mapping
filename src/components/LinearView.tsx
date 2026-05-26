@@ -1,24 +1,43 @@
+import type { Ref } from 'react'
 import type { Segment } from '../types'
 import { IconGlyph } from './IconGlyph'
+import { MapFrame } from './MapFrame'
 
 type LinearViewProps = {
   topic: string
   segments: Segment[]
   activeSegmentId: string | null
   onSelectSegment: (segmentId: string) => void
+  surfaceRef?: Ref<HTMLElement>
+  isCompact?: boolean
+  isFullscreen?: boolean
+  isFullscreenSupported?: boolean
+  onToggleFullscreen?: () => void
 }
 
-export function LinearView({ topic, segments, activeSegmentId, onSelectSegment }: LinearViewProps) {
+export function LinearView({
+  topic,
+  segments,
+  activeSegmentId,
+  onSelectSegment,
+  surfaceRef,
+  isCompact,
+  isFullscreen,
+  isFullscreenSupported,
+  onToggleFullscreen,
+}: LinearViewProps) {
   return (
-    <section className="view-surface glass-panel">
-      <div className="view-head">
-        <div>
-          <p className="panel-kicker">Linear View</p>
-          <h2>{topic || 'Untitled Map'}</h2>
-        </div>
-        <p className="meta-text">Narrative timeline from opening to close.</p>
-      </div>
-
+    <MapFrame
+      surfaceRef={surfaceRef}
+      kicker="Linear View"
+      title={topic || 'Untitled Map'}
+      description="Narrative timeline from opening to close."
+      isCompact={isCompact}
+      isFullscreen={isFullscreen}
+      isFullscreenSupported={isFullscreenSupported}
+      onToggleFullscreen={onToggleFullscreen}
+      bodyClassName="view-body--linear"
+    >
       <div className="linear-map" role="list" aria-label="Linear segment timeline">
         <span className="linear-axis" aria-hidden="true" />
         {segments.map((segment, index) => {
@@ -53,6 +72,6 @@ export function LinearView({ topic, segments, activeSegmentId, onSelectSegment }
           )
         })}
       </div>
-    </section>
+    </MapFrame>
   )
 }

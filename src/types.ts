@@ -1,4 +1,5 @@
 export type LayoutMode = 'clock' | 'grid' | 'linear'
+export type PresentationViewMode = 'standard' | 'companion'
 
 export type SegmentTone = 'primary' | 'secondary' | 'tertiary' | 'alert' | 'neutral'
 
@@ -26,6 +27,7 @@ export type PresentationState = {
   index: number
   isPlaying: boolean
   startedAt: number | null
+  mode: PresentationViewMode
 }
 
 export type GeneratedSegmentDraft = {

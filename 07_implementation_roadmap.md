@@ -1,4 +1,19 @@
-# Allison's Memory ClockRay — Implementation Roadmap
+# Allison's Memory ClockRay - Implementation Roadmap
+
+## Status Update (April 23, 2026)
+
+Phase 1 baseline from this roadmap is already implemented and shipped.
+
+Current product state now includes capabilities that were intentionally excluded in this original document, including:
+- AI-assisted map analysis via Gemini API
+- PDF export flow
+- multi-layout clock/grid/linear switching
+- enhanced icon pipeline and editing UX
+- fullscreen map viewing and fit-first presentation surfaces
+
+Current acceptance criteria for Phase 2+ planning now also treat "always fully visible and legible on mobile" as a first-class requirement for every presentation surface, especially Clock view.
+
+This file is kept as the historical Phase 1 implementation reference. New execution planning should continue from Phase 2+ documents.
 
 ## 1. Sprint Objective
 
@@ -43,7 +58,7 @@ This sprint should produce a polished, working app that:
 
 ## 3. Roadmap Milestones
 
-### Milestone 1 — Product Foundation
+### Milestone 1 - Product Foundation
 Goal: establish the app shell, structure, and visual system.
 
 Deliverables:
@@ -53,7 +68,7 @@ Deliverables:
 - core component boundaries
 - base data types
 
-### Milestone 2 — Deterministic Generation Engine
+### Milestone 2 - Deterministic Generation Engine
 Goal: convert input text into usable segments without AI.
 
 Deliverables:
@@ -63,7 +78,7 @@ Deliverables:
 - preview generation utility
 - layout position utility
 
-### Milestone 3 — ClockRay Visualization
+### Milestone 3 - ClockRay Visualization
 Goal: render the circular memory map.
 
 Deliverables:
@@ -73,7 +88,7 @@ Deliverables:
 - active segment highlighting
 - responsive placement logic
 
-### Milestone 4 — Editing and Review
+### Milestone 4 - Editing and Review
 Goal: allow user customization.
 
 Deliverables:
@@ -83,7 +98,7 @@ Deliverables:
 - update topic title
 - live UI refresh on edit
 
-### Milestone 5 — Presentation Mode
+### Milestone 5 - Presentation Mode
 Goal: support rehearsing and presenting from the map.
 
 Deliverables:
@@ -93,7 +108,7 @@ Deliverables:
 - keyboard support
 - active segment focus state
 
-### Milestone 6 — Persistence and Polish
+### Milestone 6 - Persistence and Polish
 Goal: make the app feel complete and durable.
 
 Deliverables:
@@ -103,7 +118,7 @@ Deliverables:
 - responsive refinements
 - final visual cleanup
 
-### Milestone 7 — Build and Deployment
+### Milestone 7 - Build and Deployment
 Goal: verify production readiness and prepare for Vercel.
 
 Deliverables:
@@ -441,7 +456,7 @@ Recommended implementation sequence:
 
 ## 6. Testing Milestones
 
-### Milestone A — Utility Testing
+### Milestone A - Utility Testing
 Check that:
 - text segmentation works
 - keywords are readable
@@ -449,27 +464,27 @@ Check that:
 - preview text is correct
 - layout positions are valid
 
-### Milestone B — UI Testing
+### Milestone B - UI Testing
 Check that:
 - the clock renders correctly
 - clicking segments updates active state
 - editing updates the map
 - layout remains readable at smaller sizes
 
-### Milestone C — Presentation Testing
+### Milestone C - Presentation Testing
 Check that:
 - next and previous navigation work
 - keyboard shortcuts work
 - active state is clear
 - the UI remains legible in presentation mode
 
-### Milestone D — Persistence Testing
+### Milestone D - Persistence Testing
 Check that:
 - data is saved to localStorage
 - data reloads correctly
 - reset clears the draft
 
-### Milestone E — Production Testing
+### Milestone E - Production Testing
 Check that:
 - the app builds successfully
 - no lint errors remain
@@ -508,4 +523,5 @@ The entire map generation flow should be deterministic and local for now.
 
 ## 9. Summary
 
-This roadmap turns the documentation into a concrete build plan. The sprint should proceed from data model to utilities, to UI components, to state coordination, to persistence, and finally to production deployment readiness — all without AI integration.
+This roadmap turns the documentation into a concrete build plan. The sprint should proceed from data model to utilities, to UI components, to state coordination, to persistence, and finally to production deployment readiness - all without AI integration.
+

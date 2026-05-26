@@ -2,21 +2,29 @@ import { useEffect, useRef } from 'react'
 import type { Segment } from '../types'
 import { IconGlyph } from './IconGlyph'
 
+export type PresentationModeHandle = {
+  enterFullscreen: () => Promise<boolean>
+}
+
 type PresentationModeProps = {
   isOpen: boolean
   topic: string
   segments: Segment[]
   currentIndex: number
+  mode: PresentationViewMode
+  isCompact?: boolean
   onClose: () => void
   onNext: () => void
   onPrevious: () => void
 }
 
-export function PresentationMode({
+export const PresentationMode = forwardRef<PresentationModeHandle, PresentationModeProps>(function PresentationMode({
   isOpen,
   topic,
   segments,
   currentIndex,
+  mode,
+  isCompact = false,
   onClose,
   onNext,
   onPrevious,
@@ -91,7 +99,7 @@ export function PresentationMode({
       <div className="presentation-shell">
         <header className="presentation-shell__head">
           <div>
-            <p className="panel-kicker">Presentation Mode</p>
+            <p className="panel-kicker">{isCompanion ? 'Companion Mode' : 'Presentation Mode'}</p>
             <h2>{topic || 'Untitled Map'}</h2>
           </div>
           <div className="presentation-shell__actions">
@@ -145,4 +153,4 @@ export function PresentationMode({
       </div>
     </div>
   )
-}
+})

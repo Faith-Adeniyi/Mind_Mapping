@@ -10,6 +10,7 @@ type TopBarProps = {
   onLayoutChange: (mode: LayoutMode) => void
   onNewMap: () => void
   onPresent: () => void
+  onCompanion: () => void
   onExportPdf: () => void
 }
 
@@ -27,6 +28,7 @@ export function TopBar({
   onLayoutChange,
   onNewMap,
   onPresent,
+  onCompanion,
   onExportPdf,
 }: TopBarProps) {
   const handleSignOut = () => {
@@ -128,6 +130,9 @@ export function TopBar({
         </button>
         <button type="button" className="primary-button" onClick={onPresent} disabled={!canPresent}>
           Present
+        </button>
+        <button type="button" className="ghost-button" onClick={onCompanion} disabled={!canPresent}>
+          Companion
         </button>
         <button
           type="button"

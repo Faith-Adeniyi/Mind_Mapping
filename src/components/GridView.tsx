@@ -1,24 +1,43 @@
+import type { Ref } from 'react'
 import type { Segment } from '../types'
 import { IconGlyph } from './IconGlyph'
+import { MapFrame } from './MapFrame'
 
 type GridViewProps = {
   topic: string
   segments: Segment[]
   activeSegmentId: string | null
   onSelectSegment: (segmentId: string) => void
+  surfaceRef?: Ref<HTMLElement>
+  isCompact?: boolean
+  isFullscreen?: boolean
+  isFullscreenSupported?: boolean
+  onToggleFullscreen?: () => void
 }
 
-export function GridView({ topic, segments, activeSegmentId, onSelectSegment }: GridViewProps) {
+export function GridView({
+  topic,
+  segments,
+  activeSegmentId,
+  onSelectSegment,
+  surfaceRef,
+  isCompact,
+  isFullscreen,
+  isFullscreenSupported,
+  onToggleFullscreen,
+}: GridViewProps) {
   return (
-    <section className="view-surface glass-panel">
-      <div className="view-head">
-        <div>
-          <p className="panel-kicker">Grid View</p>
-          <h2>{topic || 'Untitled Map'}</h2>
-        </div>
-        <p className="meta-text">Scan all memory anchors at once.</p>
-      </div>
-
+    <MapFrame
+      surfaceRef={surfaceRef}
+      kicker="Grid View"
+      title={topic || 'Untitled Map'}
+      description="Scan all memory anchors at once."
+      isCompact={isCompact}
+      isFullscreen={isFullscreen}
+      isFullscreenSupported={isFullscreenSupported}
+      onToggleFullscreen={onToggleFullscreen}
+      bodyClassName="view-body--grid"
+    >
       <div className="grid-map" role="list" aria-label="Grid segment map">
         {segments.map((segment) => {
           const isActive = segment.id === activeSegmentId
@@ -38,6 +57,6 @@ export function GridView({ topic, segments, activeSegmentId, onSelectSegment }: 
           )
         })}
       </div>
-    </section>
+    </MapFrame>
   )
 }
