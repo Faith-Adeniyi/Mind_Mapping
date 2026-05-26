@@ -1,7 +1,9 @@
+import type { Session } from '@supabase/supabase-js'
 import { useEffect, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
 import './App.css'
 import { AppShell } from './components/AppShell'
+import { AuthGate } from './components/AuthGate'
 import { ClockRay } from './components/ClockRay'
 import { EditorPanel } from './components/EditorPanel'
 import { GridView } from './components/GridView'
@@ -9,6 +11,7 @@ import { InputPanel } from './components/InputPanel'
 import { LinearView } from './components/LinearView'
 import { PresentationMode, type PresentationModeHandle } from './components/PresentationMode'
 import { TopBar } from './components/TopBar'
+import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { TONE_SEQUENCE } from './data/iconDefaults'
 import { useManagedFullscreen } from './hooks/useManagedFullscreen'
 import type { GeneratedSegmentDraft, MapDraft, PresentationState, Segment } from './types'
@@ -124,6 +127,26 @@ function moveSegment(segments: Segment[], segmentId: string, direction: 'up' | '
 }
 
 function App() {
+  const [session, setSession] = useState<Session | null | undefined>(
+    isSupabaseConfigured ? undefined : null,
+  )
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      return undefined
+    }
+
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+    })
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession)
+    })
+
+    return () => listener.subscription.unsubscribe()
+  }, [])
+
   const [draft, setDraft] = useState<MapDraft>(() => normalizeDraft(loadDraft() ?? createDefaultDraft()))
   const [isGenerating, setIsGenerating] = useState(false)
   const [generationStatus, setGenerationStatus] = useState<string | null>(null)
@@ -386,44 +409,62 @@ function App() {
   }
 
   const handlePrevious = () => {
-    setPresentation((current) => {
-      const baseIndex = getActiveIndex(draft.segments, draft.activeSegmentId)
-      const nextIndex = Math.max(0, baseIndex - 1)
-      const nextSegment = draft.segments[nextIndex]
+    const baseIndex = getActiveIndex(draft.segments, draft.activeSegmentId)
+    const nextIndex = Math.max(0, baseIndex - 1)
+    const nextSegment = draft.segments[nextIndex]
 
-      if (nextSegment) {
-        setDraft((draftState) => ({
-          ...draftState,
-          activeSegmentId: nextSegment.id,
-        }))
-      }
+    if (nextSegment) {
+      setDraft((draftState) => ({ ...draftState, activeSegmentId: nextSegment.id }))
+    }
 
-      return {
-        ...current,
-        index: nextIndex,
-      }
-    })
+    setPresentation((current) => ({ ...current, index: nextIndex }))
   }
 
   const handleNext = () => {
-    setPresentation((current) => {
-      const lastIndex = Math.max(0, draft.segments.length - 1)
-      const baseIndex = getActiveIndex(draft.segments, draft.activeSegmentId)
-      const nextIndex = Math.min(lastIndex, baseIndex + 1)
-      const nextSegment = draft.segments[nextIndex]
+    const lastIndex = Math.max(0, draft.segments.length - 1)
+    const baseIndex = getActiveIndex(draft.segments, draft.activeSegmentId)
+    const nextIndex = Math.min(lastIndex, baseIndex + 1)
+    const nextSegment = draft.segments[nextIndex]
 
-      if (nextSegment) {
-        setDraft((draftState) => ({
-          ...draftState,
-          activeSegmentId: nextSegment.id,
-        }))
-      }
+    if (nextSegment) {
+      setDraft((draftState) => ({ ...draftState, activeSegmentId: nextSegment.id }))
+    }
 
-      return {
-        ...current,
-        index: nextIndex,
-      }
-    })
+    setPresentation((current) => ({ ...current, index: nextIndex }))
+  }
+
+  if (!isSupabaseConfigured) {
+    return (
+      <AppShell>
+        <div className="auth-gate" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', padding: '2rem' }}>
+          <div className="auth-card" style={{ textAlign: 'center', maxWidth: 480 }}>
+            <p className="panel-kicker">Configuration required</p>
+            <h2 style={{ marginTop: '0.5rem' }}>Auth is not configured</h2>
+            <p className="meta-text" style={{ marginTop: '1rem' }}>
+              Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> in your <code>.env</code>{' '}
+              file, then restart the dev server.
+            </p>
+          </div>
+        </div>
+      </AppShell>
+    )
+  }
+
+  // Waiting for Supabase to resolve the initial session
+  if (session === undefined) {
+    return (
+      <div className="auth-gate" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>
+        <p className="meta-text">Loading…</p>
+      </div>
+    )
+  }
+
+  if (session === null) {
+    return (
+      <AppShell>
+        <AuthGate />
+      </AppShell>
+    )
   }
 
   return (
@@ -432,6 +473,7 @@ function App() {
         layoutMode={draft.layoutMode}
         canPresent={hasSegments}
         canExport={hasSegments}
+        userEmail={session.user.email ?? ''}
         onLayoutChange={(layoutMode) => setDraft((current) => ({ ...current, layoutMode }))}
         onNewMap={handleReset}
         onPresent={handleOpenStandardPresentation}
@@ -634,14 +676,11 @@ function App() {
         ref={presentationModeRef}
         isOpen={presentation.isOpen}
         topic={draft.topic}
-        layoutMode={draft.layoutMode}
         segments={draft.segments}
-        activeSegmentId={draft.activeSegmentId}
         currentIndex={presentation.isOpen ? activeIndex : presentation.index}
         mode={presentation.mode}
         isCompact={isCompactViewport}
         onClose={handleClosePresentation}
-        onSelectSegment={handleSelectSegment}
         onNext={handleNext}
         onPrevious={handlePrevious}
       />
