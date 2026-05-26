@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
+import { supabase } from '../lib/supabase'
 import type { LayoutMode } from '../types'
 
 type TopBarProps = {
   layoutMode: LayoutMode
   canPresent: boolean
   canExport: boolean
+  userEmail: string
   onLayoutChange: (mode: LayoutMode) => void
   onNewMap: () => void
   onPresent: () => void
@@ -21,11 +23,15 @@ export function TopBar({
   layoutMode,
   canPresent,
   canExport,
+  userEmail,
   onLayoutChange,
   onNewMap,
   onPresent,
   onExportPdf,
 }: TopBarProps) {
+  const handleSignOut = () => {
+    void supabase.auth.signOut()
+  }
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
   const moreMenuRef = useRef<HTMLDivElement | null>(null)
 
@@ -73,9 +79,9 @@ export function TopBar({
 
   return (
     <header className="topbar glass-panel">
-      <div className="topbar__brand">
+      {/* <div className="topbar__brand">
         <img
-          src="/brand/allison-icon-64.png"
+          src="/brand/icon+wordmark logo.png"
           alt=""
           className="topbar__brand-icon"
           width={32}
@@ -88,7 +94,18 @@ export function TopBar({
           <p className="topbar__logo">Allison's Memory ClockRay</p>
           <p className="topbar__subtitle">An innovative thinking tool for speaking extempore....</p>
         </div>
-      </div>
+      </div> */}
+
+      <img
+          src="/brand/icon+wordmark_logo_blue.png"
+          alt=""
+          className="h-10"
+          // width={32}
+          // height={40}
+          loading="eager"
+          decoding="async"
+          aria-hidden="true"
+        />
 
       <div className="topbar__switcher" role="tablist" aria-label="Visualization Mode">
         {VIEW_OPTIONS.map((option) => (
@@ -120,6 +137,10 @@ export function TopBar({
         >
           Export PDF
         </button>
+        <span className="topbar__user-email" title={userEmail}>{userEmail}</span>
+        <button type="button" className="ghost-button topbar__signout" onClick={handleSignOut}>
+          Sign Out
+        </button>
         <div className="topbar__more" ref={moreMenuRef}>
           <button
             type="button"
@@ -143,6 +164,17 @@ export function TopBar({
                 }}
               >
                 Export PDF
+              </button>
+              <button
+                type="button"
+                className="ghost-button topbar__more-item"
+                role="menuitem"
+                onClick={() => {
+                  setIsMoreMenuOpen(false)
+                  handleSignOut()
+                }}
+              >
+                Sign Out
               </button>
             </div>
           ) : null}

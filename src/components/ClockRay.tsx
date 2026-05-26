@@ -22,12 +22,15 @@ function clamp(value: number, min: number, max: number) {
 }
 
 function getClockHourLabel(positionIndex: number, totalNodes: number) {
-  if (totalNodes <= 0) {
-    return ''
+  if (totalNodes <= 0) return ''
+  // Only use real clock-hour labels when the nodes land exactly on hour marks.
+  // For 12 nodes every node sits precisely on an hour; for other counts nodes
+  // fall between marks, so sequential position numbers are clearer.
+  if (totalNodes === 12) {
+    const hour = positionIndex === 0 ? 12 : positionIndex
+    return String(hour)
   }
-
-  const sampledHour = Math.round((positionIndex * 12) / totalNodes) % 12
-  return String(sampledHour === 0 ? 12 : sampledHour)
+  return String(positionIndex + 1)
 }
 
 function getTitleScaleClass(title: string): TitleScaleClass {

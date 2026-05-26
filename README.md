@@ -7,8 +7,6 @@ This project includes a serverless analysis endpoint at `/api/analyze-map` for s
 - `GEMINI_API_KEY` (required in Vercel/local server env)
 - `GEMINI_MODEL` (optional, defaults to `gemini-2.5-flash-lite`)
 
-Use `.env.example` as a template.
-
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
