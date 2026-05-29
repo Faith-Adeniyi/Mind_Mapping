@@ -1200,11 +1200,25 @@
   position: relative;
   width: 100%;
   min-height: clamp(420px, 68vh, 860px);
-  aspect-ratio: 1 / 1;
   max-height: min(82vh, 960px);
   border-radius: var(--radius-xl);
   overflow: hidden;
   background: var(--surface-low);
+}
+
+.clock-topic-banner {
+  position: absolute;
+  top: clamp(0.9rem, 1.6vw, 1.4rem);
+  left: clamp(1rem, 1.8vw, 1.6rem);
+  z-index: 3;
+  pointer-events: none;
+  font-family: 'Outfit', sans-serif;
+  font-size: clamp(0.92rem, 1.1vw, 1.08rem);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
+  max-width: 60%;
+  text-wrap: balance;
 }
 
 /* Dot-grid overlay */
@@ -1228,6 +1242,25 @@
     radial-gradient(circle at 50% 50%, rgba(232, 162, 60, 0.075) 0%, transparent 32%),
     radial-gradient(circle at 50% 50%, rgba(94, 108, 232, 0.045) 28%, transparent 62%);
   z-index: 0;
+}
+
+.clock-numeral-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.clock-hour-mark {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  color: var(--text-muted);
+  font-family: 'DM Mono', monospace;
+  font-size: clamp(0.72rem, 0.95vw, 0.92rem);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  user-select: none;
 }
 
 /* Structural meridian — cool cobalt dashes */
@@ -1340,21 +1373,40 @@
   text-align: center;
   background: var(--surface-high);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
-  transition: border-color 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 160ms ease,
+    box-shadow 200ms ease,
+    background 160ms ease;
   cursor: pointer;
+  overflow: hidden;
   z-index: 2;
+}
+
+.clock-node:hover,
+.clock-node:focus-visible,
+.clock-node.is-active {
+  width: calc(var(--clock-node-size) * 1.32);
+  z-index: 6;
 }
 
 .clock-node:hover {
   border-color: var(--outline-mid);
   background: var(--surface-bright);
-  box-shadow: 0 0 0 5px var(--primary-dim), 0 16px 32px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 0 5px var(--primary-dim), 0 18px 36px rgba(0, 0, 0, 0.5);
 }
 
 .clock-node.is-active {
   border-color: var(--primary);
-  background: linear-gradient(160deg, rgba(232, 162, 60, 0.13), var(--surface-high));
-  box-shadow: 0 0 0 5px var(--primary-dim), 0 0 28px rgba(232, 162, 60, 0.18);
+  background: linear-gradient(160deg, rgba(232, 162, 60, 0.16), var(--surface-high));
+  box-shadow: 0 0 0 5px var(--primary-dim), 0 0 32px rgba(232, 162, 60, 0.22);
+}
+
+.clock-node:hover .clock-node__title,
+.clock-node:focus-visible .clock-node__title,
+.clock-node.is-active .clock-node__title {
+  -webkit-line-clamp: 4;
 }
 
 .clock-node__index {
@@ -1371,13 +1423,39 @@
 }
 
 .clock-node__title {
-  width: 90%;
+  width: 92%;
   font-size: clamp(0.76rem, 0.86vw, 0.92rem);
   line-height: 1.22;
   font-weight: 500;
   text-wrap: balance;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
+  hyphens: auto;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.clock-node__title.title-scale-short {
+  font-size: clamp(0.82rem, 0.92vw, 0.98rem);
+  line-height: 1.2;
+}
+
+.clock-node__title.title-scale-medium {
+  font-size: clamp(0.74rem, 0.82vw, 0.88rem);
+  line-height: 1.18;
+}
+
+.clock-node__title.title-scale-long {
+  font-size: clamp(0.68rem, 0.76vw, 0.82rem);
+  line-height: 1.14;
+}
+
+.clock-node__title.title-scale-xlong {
+  font-size: clamp(0.62rem, 0.7vw, 0.76rem);
+  line-height: 1.1;
 }
 
 /* Dense mode (10 + segments) */
@@ -1452,9 +1530,36 @@
 }
 
 .clock-node__preview {
+  width: 94%;
+  max-height: 0;
+  margin-top: 0;
   color: var(--text-soft);
-  font-size: 0.72rem;
-  line-height: 1.28;
+  font-size: clamp(0.62rem, 0.7vw, 0.74rem);
+  line-height: 1.32;
+  font-weight: 400;
+  text-wrap: balance;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-2px);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  text-overflow: ellipsis;
+  transition:
+    max-height 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease 60ms,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.clock-node:hover .clock-node__preview,
+.clock-node:focus-visible .clock-node__preview,
+.clock-node.is-active .clock-node__preview {
+  max-height: 4.6em;
+  margin-top: 0.32rem;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* ── Grid view ────────────────────────────────────── */
