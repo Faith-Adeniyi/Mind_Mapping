@@ -25,7 +25,11 @@ export function AuthGate() {
 
     try {
       if (mode === 'register') {
-        const { error: signUpError } = await supabase.auth.signUp({ email, password })
+        const { error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        })
         if (signUpError) throw signUpError
         setNotice('Check your email for a confirmation link.')
       } else {
