@@ -39,9 +39,9 @@ export function computeClockLayout(
 
   const isDense = segmentCount >= 10
   const isMediumDense = segmentCount >= 8 && segmentCount <= 9
-  const densityLift = isDense ? 0.08 + (segmentCount - 10) * 0.02 : isMediumDense ? 0.03 : 0
-  const targetRadius = minDimension * (0.31 + densityLift)
-  const minRadius = Math.min(maxSafeRadius, Math.max(56, minDimension * 0.2))
+  const densityLift = isDense ? 0.06 + (segmentCount - 10) * 0.015 : isMediumDense ? 0.02 : 0
+  const targetRadius = minDimension * (0.38 + densityLift)
+  const minRadius = Math.min(maxSafeRadius, Math.max(56, minDimension * 0.25))
   const radius = clamp(targetRadius, minRadius, maxSafeRadius)
 
   const step = (Math.PI * 2) / segmentCount
@@ -65,14 +65,17 @@ export function getClockLayoutMetrics(
   const safeWidth = Math.max(320, width)
   const safeHeight = Math.max(320, height)
   const centerX = safeWidth / 2
-  const verticalBias = options.verticalBias ?? 0.04
+  const verticalBias = options.verticalBias ?? 0
   const centerY = safeHeight / 2 + safeHeight * verticalBias
   const minDimension = Math.min(safeWidth, safeHeight)
   const estimatedNodeDiameter = options.estimatedNodeDiameter ?? clamp(minDimension * 0.19, 84, 136)
   const edgePadding = options.edgePadding ?? clamp(minDimension * 0.05, 12, 30)
+  // Titles can wrap and push rendered content slightly taller than the circle diameter.
+  // Pad the vertical envelope so top/bottom nodes don't clip the stage.
+  const verticalNodeEnvelope = estimatedNodeDiameter * 1.18
   const maxRadiusX = Math.max(56, safeWidth / 2 - estimatedNodeDiameter / 2 - edgePadding)
-  const maxRadiusTop = Math.max(56, centerY - estimatedNodeDiameter / 2 - edgePadding - safeHeight * 0.1)
-  const maxRadiusBottom = Math.max(56, safeHeight - centerY - estimatedNodeDiameter / 2 - edgePadding)
+  const maxRadiusTop = Math.max(56, centerY - verticalNodeEnvelope / 2 - edgePadding)
+  const maxRadiusBottom = Math.max(56, safeHeight - centerY - verticalNodeEnvelope / 2 - edgePadding)
   const maxSafeRadius = Math.max(56, Math.min(maxRadiusX, maxRadiusTop, maxRadiusBottom))
 
   return {

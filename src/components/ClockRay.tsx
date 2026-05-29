@@ -31,18 +31,6 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(value, max))
 }
 
-function getClockHourLabel(positionIndex: number, totalNodes: number) {
-  if (totalNodes <= 0) return ''
-  // Only use real clock-hour labels when the nodes land exactly on hour marks.
-  // For 12 nodes every node sits precisely on an hour; for other counts nodes
-  // fall between marks, so sequential position numbers are clearer.
-  if (totalNodes === 12) {
-    const hour = positionIndex === 0 ? 12 : positionIndex
-    return String(hour)
-  }
-  return String(positionIndex + 1)
-}
-
 function getTitleScaleClass(title: string): TitleScaleClass {
   const length = title.trim().length
 
@@ -172,7 +160,7 @@ export function ClockRay({
       getClockLayoutMetrics(stageSize.width, stageSize.height, {
         estimatedNodeDiameter: nodeDiameter,
         edgePadding: clockEdgePadding,
-        verticalBias: isSmallStage ? 0.075 : 0.045,
+        verticalBias: 0,
       }),
     [clockEdgePadding, isSmallStage, nodeDiameter, stageSize.height, stageSize.width],
   )
@@ -185,7 +173,7 @@ export function ClockRay({
       computeClockLayout(segments, stageSize.width, stageSize.height, {
         estimatedNodeDiameter: nodeDiameter,
         edgePadding: clockEdgePadding,
-        verticalBias: isSmallStage ? 0.075 : 0.045,
+        verticalBias: 0,
       }),
     [clockEdgePadding, isSmallStage, nodeDiameter, segments, stageSize.height, stageSize.width],
   )
@@ -194,11 +182,11 @@ export function ClockRay({
   const orbitRadius = positions.length > 0
     ? Math.hypot(positions[0].x - center.x, positions[0].y - center.y)
     : layoutMetrics.maxSafeRadius
-  const numeralInset = getTierValue(26, 34, 42)
-  const numeralRadius = clampToRange(
+  const numeralInset = getTierValue(10, 14, 18)
+  const numeralRadius = clamp(
     orbitRadius - nodeRadius - numeralInset,
-    getTierValue(72, 86, 100),
-    orbitRadius - 18,
+    hubRadius + getTierValue(28, 36, 44),
+    orbitRadius - nodeRadius - 6,
   )
 
   return (
@@ -316,6 +304,9 @@ export function ClockRay({
                 <span className="clock-node__index">{hourSlot}</span>
                 <IconGlyph value={segment.icon} className="clock-node__icon" />
                 <strong className={`clock-node__title ${titleScaleClass}`}>{segment.keyword}</strong>
+                {segment.preview ? (
+                  <span className="clock-node__preview">{segment.preview}</span>
+                ) : null}
               </button>
             )
           })}

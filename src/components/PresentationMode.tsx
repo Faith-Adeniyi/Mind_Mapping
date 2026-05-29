@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
-import type { Segment } from '../types'
+import { forwardRef, useEffect, useRef } from 'react'
+import type { PresentationViewMode, Segment } from '../types'
 import { IconGlyph } from './IconGlyph'
 
 export type PresentationModeHandle = {
@@ -93,10 +93,13 @@ export const PresentationMode = forwardRef<PresentationModeHandle, PresentationM
 
   const activeSegment = segments[currentIndex] ?? null
   const progress = segments.length > 0 ? ((currentIndex + 1) / segments.length) * 100 : 0
+  const isCompanion = mode === 'companion'
+  const overlayClassName = `presentation-overlay ${isCompanion ? 'presentation-overlay--companion' : ''} ${isCompact ? 'presentation-overlay--compact' : ''}`.trim()
+  const shellClassName = `presentation-shell ${isCompanion ? 'presentation-shell--companion' : ''} ${isCompact ? 'presentation-shell--compact' : ''}`.trim()
 
   return (
-    <div className="presentation-overlay" role="dialog" aria-modal="true" aria-label="Presentation Mode">
-      <div className="presentation-shell">
+    <div className={overlayClassName} role="dialog" aria-modal="true" aria-label="Presentation Mode">
+      <div className={shellClassName}>
         <header className="presentation-shell__head">
           <div>
             <p className="panel-kicker">{isCompanion ? 'Companion Mode' : 'Presentation Mode'}</p>
