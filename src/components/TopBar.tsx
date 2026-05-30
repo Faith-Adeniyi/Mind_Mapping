@@ -99,7 +99,8 @@ export function TopBar({
       </div> */}
 
       <img
-          src="/brand/icon+wordmark_logo_blue.png"
+          // src="/brand/icon+wordmark_logo_blue.png"
+          src="/brand/icon+wordmark_logo_white.png"
           alt=""
           className="h-10"
           // width={32}

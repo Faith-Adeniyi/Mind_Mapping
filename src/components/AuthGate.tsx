@@ -54,7 +54,8 @@ export function AuthGate() {
         </div> */}
 
         <img
-          src="/brand/icon+wordmark_logo_blue.png"
+          // src="/brand/icon+wordmark_logo_blue.png"
+          src="/brand/icon+wordmark_logo_white.png"
           alt=""
           className="flex items-center justify-center"
           // width={32}
