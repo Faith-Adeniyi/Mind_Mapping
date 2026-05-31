@@ -20,6 +20,18 @@ export type MapDraft = {
   segments: Segment[]
   activeSegmentId: string | null
   layoutMode: LayoutMode
+  currentMapId: string | null
+}
+
+export type SavedMindMap = {
+  id: string
+  topic: string
+  rawText: string
+  desiredSegmentCount: number
+  segments: Segment[]
+  layoutMode: LayoutMode
+  createdAt: string
+  updatedAt: string
 }
 
 export type PresentationState = {

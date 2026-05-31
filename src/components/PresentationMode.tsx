@@ -1,6 +1,75 @@
-import { forwardRef, useEffect, useRef } from 'react'
+import { Icon } from '@iconify/react'
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react'
 import type { PresentationViewMode, Segment } from '../types'
 import { IconGlyph } from './IconGlyph'
+
+/**
+ * Minimal percent-positioned clock used only inside Present mode.
+ * Both the hub and the nodes resolve against the same parent box via %,
+ * so the hub is mathematically centered on the orbit (no JS measurement
+ * involved, no view-surface wrapper chain to drift the layout).
+ */
+function PresentClock({ segments, activeId }: { segments: Segment[]; activeId: string | null }) {
+  const orbitPct = 38
+  const nodePct = 17
+  const hubPct = 22
+  const activeIdx = Math.max(0, segments.findIndex((s) => s.id === activeId))
+  const handAngle = (activeIdx / Math.max(segments.length, 1)) * 360 - 90
+
+  return (
+    <div className="pclock">
+      <span className="pclock__ring" aria-hidden="true" />
+      <span className="pclock__face" aria-hidden="true" />
+
+      {Array.from({ length: 12 }).map((_, i) => {
+        const hour = i + 1
+        const a = (hour / 12) * Math.PI * 2 - Math.PI / 2
+        const r = orbitPct - nodePct / 2 - 6
+        const x = 50 + Math.cos(a) * r
+        const y = 50 + Math.sin(a) * r
+        return (
+          <span
+            key={`num-${hour}`}
+            className="pclock__num"
+            style={{ left: `${x}%`, top: `${y}%` }}
+            aria-hidden="true"
+          >
+            {hour}
+          </span>
+        )
+      })}
+
+      {/* hub: centered with translate-50/-50 so 50%/50% is its midpoint */}
+      <div className="pclock__hub" style={{ width: `${hubPct}%`, height: `${hubPct}%` }} aria-hidden="true" />
+
+      {/* hand */}
+      <span
+        className="pclock__hand"
+        style={{ width: `${orbitPct}%`, transform: `translateY(-50%) rotate(${handAngle}deg)` }}
+        aria-hidden="true"
+      />
+
+      {/* nodes */}
+      {segments.map((s, i) => {
+        const a = (i / segments.length) * Math.PI * 2
+        const x = 50 + Math.sin(a) * orbitPct
+        const y = 50 - Math.cos(a) * orbitPct
+        const isActive = s.id === activeId
+        return (
+          <div
+            key={s.id}
+            className={`pclock__node ${isActive ? 'on' : ''}`}
+            style={{ left: `${x}%`, top: `${y}%`, width: `${nodePct}%`, height: `${nodePct}%` }}
+          >
+            <span className="pclock__node-idx">{String(i + 1).padStart(2, '0')}</span>
+            <IconGlyph value={s.icon} className="pclock__node-icon" />
+            <span className="pclock__node-kw">{s.keyword}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 export type PresentationModeHandle = {
   enterFullscreen: () => Promise<boolean>
@@ -18,41 +87,51 @@ type PresentationModeProps = {
   onPrevious: () => void
 }
 
-export const PresentationMode = forwardRef<PresentationModeHandle, PresentationModeProps>(function PresentationMode({
-  isOpen,
-  topic,
-  segments,
-  currentIndex,
-  mode,
-  isCompact = false,
-  onClose,
-  onNext,
-  onPrevious,
-}: PresentationModeProps) {
+export const PresentationMode = forwardRef<PresentationModeHandle, PresentationModeProps>(function PresentationMode(
+  {
+    isOpen,
+    topic,
+    segments,
+    currentIndex,
+    mode,
+    onClose,
+    onNext,
+    onPrevious,
+  }: PresentationModeProps,
+  ref,
+) {
   const onCloseRef = useRef(onClose)
   const onNextRef = useRef(onNext)
   const onPreviousRef = useRef(onPrevious)
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
-  // Keep callback refs current without retriggering the listener effects below.
-  // Parent passes inline callbacks, so depending on them directly would re-run
-  // the fullscreen effect every render.
   useEffect(() => {
     onCloseRef.current = onClose
     onNextRef.current = onNext
     onPreviousRef.current = onPrevious
   })
 
+  useImperativeHandle(
+    ref,
+    () => ({
+      enterFullscreen: async () => {
+        try {
+          await document.documentElement.requestFullscreen?.()
+          return true
+        } catch {
+          return false
+        }
+      },
+    }),
+    [],
+  )
+
   useEffect(() => {
     if (!isOpen) return undefined
-
-    const el = document.documentElement
-    el.requestFullscreen?.().catch(() => {})
-
     const onFsChange = () => {
       if (!document.fullscreenElement) onCloseRef.current()
     }
     document.addEventListener('fullscreenchange', onFsChange)
-
     return () => {
       document.removeEventListener('fullscreenchange', onFsChange)
       if (document.fullscreenElement) {
@@ -63,15 +142,9 @@ export const PresentationMode = forwardRef<PresentationModeHandle, PresentationM
 
   useEffect(() => {
     if (!isOpen) return undefined
-
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        // In fullscreen, the browser handles Escape natively and fires
-        // fullscreenchange, which calls onClose. Outside fullscreen
-        // (e.g. requestFullscreen was rejected), close manually.
-        if (!document.fullscreenElement) {
-          onCloseRef.current()
-        }
+        if (!document.fullscreenElement) onCloseRef.current()
         return
       }
       if (event.key === 'ArrowRight' || event.key === ' ') {
@@ -84,7 +157,6 @@ export const PresentationMode = forwardRef<PresentationModeHandle, PresentationM
         onPreviousRef.current()
       }
     }
-
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [isOpen])
@@ -92,67 +164,87 @@ export const PresentationMode = forwardRef<PresentationModeHandle, PresentationM
   if (!isOpen) return null
 
   const activeSegment = segments[currentIndex] ?? null
-  const progress = segments.length > 0 ? ((currentIndex + 1) / segments.length) * 100 : 0
   const isCompanion = mode === 'companion'
-  const overlayClassName = `presentation-overlay ${isCompanion ? 'presentation-overlay--companion' : ''} ${isCompact ? 'presentation-overlay--compact' : ''}`.trim()
-  const shellClassName = `presentation-shell ${isCompanion ? 'presentation-shell--companion' : ''} ${isCompact ? 'presentation-shell--compact' : ''}`.trim()
+  const activeId = activeSegment?.id ?? null
 
   return (
-    <div className={overlayClassName} role="dialog" aria-modal="true" aria-label="Presentation Mode">
-      <div className={shellClassName}>
-        <header className="presentation-shell__head">
-          <div>
-            <p className="panel-kicker">{isCompanion ? 'Companion Mode' : 'Presentation Mode'}</p>
-            <h2>{topic || 'Untitled Map'}</h2>
-          </div>
-          <div className="presentation-shell__actions">
-            <span className="hotkey-pill">← → Space · Esc exits</span>
-            <button type="button" className="ghost-button" onClick={onClose}>
-              Exit
-            </button>
-          </div>
-        </header>
+    <div className="present" role="dialog" aria-modal="true" aria-label="Presentation mode" ref={containerRef}>
+      <div className="present__bg" />
 
-        <main className="presentation-main">
+      <div className="present__top">
+        <span className="present__topic">
+          {isCompanion ? 'Companion · ' : ''}
+          {topic || 'Untitled Map'}
+        </span>
+        <button type="button" className="btn btn--ghost" onClick={onClose}>
+          <Icon icon="tabler:x" width={16} height={16} />
+          Exit
+        </button>
+      </div>
+
+      <div className="present__stage">
+        <div className="present__left">
+          <span className="present__idx">
+            {String(currentIndex + 1).padStart(2, '0')} / {String(segments.length).padStart(2, '0')}
+          </span>
           {activeSegment ? (
-            <div key={currentIndex} className={`presentation-slide tone-slide-${activeSegment.tone}`}>
-              <div className="slide-meta">
-                <span className="slide-index">{String(currentIndex + 1).padStart(2, '0')}</span>
-                <span aria-hidden="true">—</span>
-                <span>{segments.length} sections</span>
-              </div>
-              <IconGlyph value={activeSegment.icon} className="slide-icon" />
-              <h1 className="slide-keyword">{activeSegment.keyword}</h1>
-              <p className="slide-text">{activeSegment.text}</p>
-            </div>
+            <>
+              <h2 className="present__kw">
+                <IconGlyph value={activeSegment.icon} />
+                {activeSegment.keyword}
+              </h2>
+              <p className="present__text">{activeSegment.text}</p>
+            </>
           ) : (
-            <p className="empty-text">No segments to display.</p>
+            <p className="meta-text">No segments to display.</p>
           )}
-        </main>
+        </div>
 
-        <footer className="presentation-shell__foot">
-          <div className="progress-track" aria-hidden="true">
-            <span className="progress-track__fill" style={{ width: `${progress}%` }} />
+        <div className="present__clock">
+          <div className="present__clock-frame">
+            {segments.length > 0 ? <PresentClock segments={segments} activeId={activeId} /> : null}
           </div>
-          <div className="presentation-shell__nav">
-            <p className="meta-text">
-              {segments.length > 0 ? `${currentIndex + 1} / ${segments.length}` : '0 / 0'}
-            </p>
-            <div className="presentation-shell__nav-buttons">
-              <button type="button" className="ghost-button" onClick={onPrevious} disabled={currentIndex <= 0}>
-                Previous
-              </button>
-              <button
-                type="button"
-                className="primary-button"
-                onClick={onNext}
-                disabled={currentIndex >= segments.length - 1}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </footer>
+        </div>
+      </div>
+
+      <div className="present__bottom">
+        <button
+          type="button"
+          className="btn btn--icon btn--ghost"
+          disabled={currentIndex <= 0}
+          onClick={onPrevious}
+          aria-label="Previous"
+        >
+          <Icon icon="tabler:chevron-left" width={18} height={18} />
+        </button>
+        <div className="present__progress" role="tablist">
+          {segments.map((s, i) => (
+            <button
+              key={s.id}
+              type="button"
+              role="tab"
+              aria-selected={i === currentIndex}
+              aria-label={`Go to anchor ${i + 1}`}
+              className={i === currentIndex ? 'on' : ''}
+              onClick={() => {
+                if (i > currentIndex) {
+                  for (let n = currentIndex; n < i; n++) onNextRef.current()
+                } else if (i < currentIndex) {
+                  for (let n = currentIndex; n > i; n--) onPreviousRef.current()
+                }
+              }}
+            />
+          ))}
+        </div>
+        <button
+          type="button"
+          className="btn btn--icon btn--ghost"
+          disabled={currentIndex >= segments.length - 1}
+          onClick={onNext}
+          aria-label="Next"
+        >
+          <Icon icon="tabler:chevron-right" width={18} height={18} />
+        </button>
       </div>
     </div>
   )

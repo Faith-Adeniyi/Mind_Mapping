@@ -46,7 +46,10 @@ function isMapDraft(value: unknown): value is MapDraft {
     Array.isArray(candidate.segments) &&
     candidate.segments.every((segment) => isSegment(segment)) &&
     (typeof candidate.activeSegmentId === 'string' || candidate.activeSegmentId === null) &&
-    isLayoutMode(candidate.layoutMode)
+    isLayoutMode(candidate.layoutMode) &&
+    (candidate.currentMapId === undefined ||
+      candidate.currentMapId === null ||
+      typeof candidate.currentMapId === 'string')
   )
 }
 
@@ -62,6 +65,7 @@ function parseDraft(raw: string) {
     desiredSegmentCount: normalizeUiSegmentCount(
       typeof parsed.desiredSegmentCount === 'number' ? parsed.desiredSegmentCount : DEFAULT_DESIRED_SEGMENTS,
     ),
+    currentMapId: typeof parsed.currentMapId === 'string' ? parsed.currentMapId : null,
   }
 }
 
