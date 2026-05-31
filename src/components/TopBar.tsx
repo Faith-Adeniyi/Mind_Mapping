@@ -1,186 +1,188 @@
 import { useEffect, useRef, useState } from 'react'
+import { Icon } from '@iconify/react'
 import { supabase } from '../lib/supabase'
+import type { ThemeMode } from '../hooks/useTheme'
+import type { SaveState } from '../hooks/useAutoSaveMap'
 import type { LayoutMode } from '../types'
 
 type TopBarProps = {
   layoutMode: LayoutMode
   canPresent: boolean
   canExport: boolean
+  hasSegments: boolean
   userEmail: string
+  theme: ThemeMode
+  saveState: SaveState
+  lastSavedAt: number | null
   onLayoutChange: (mode: LayoutMode) => void
   onNewMap: () => void
   onPresent: () => void
-  onCompanion: () => void
   onExportPdf: () => void
+  onToggleTheme: () => void
+  onOpenHistory: () => void
 }
 
-const VIEW_OPTIONS: Array<{ mode: LayoutMode; label: string }> = [
-  { mode: 'clock', label: 'Clock' },
-  { mode: 'grid', label: 'Grid' },
-  { mode: 'linear', label: 'Linear' },
+const VIEW_OPTIONS: Array<{ mode: LayoutMode; label: string; icon: string }> = [
+  { mode: 'clock', label: 'Clock', icon: 'tabler:clock' },
+  { mode: 'grid', label: 'Grid', icon: 'tabler:layout-grid' },
+  { mode: 'linear', label: 'Linear', icon: 'tabler:list' },
 ]
+
+function avatarLabel(email: string) {
+  const trimmed = email.trim()
+  if (!trimmed) return 'U'
+  return trimmed[0]?.toUpperCase() ?? 'U'
+}
+
+function saveLabel(state: SaveState, lastSavedAt: number | null) {
+  if (state === 'saving') return 'Saving…'
+  if (state === 'error') return 'Save failed'
+  if (state === 'saved' || lastSavedAt) {
+    if (!lastSavedAt) return 'Saved'
+    const diffMin = Math.floor((Date.now() - lastSavedAt) / 60000)
+    if (diffMin < 1) return 'Saved · just now'
+    if (diffMin < 60) return `Saved · ${diffMin}m ago`
+    return 'Saved'
+  }
+  return null
+}
 
 export function TopBar({
   layoutMode,
   canPresent,
   canExport,
+  hasSegments,
   userEmail,
+  theme,
+  saveState,
+  lastSavedAt,
   onLayoutChange,
   onNewMap,
   onPresent,
-  onCompanion,
   onExportPdf,
+  onToggleTheme,
+  onOpenHistory,
 }: TopBarProps) {
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const handlePointer = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handlePointer)
+    document.addEventListener('keydown', handleKey)
+    return () => {
+      document.removeEventListener('mousedown', handlePointer)
+      document.removeEventListener('keydown', handleKey)
+    }
+  }, [menuOpen])
+
   const handleSignOut = () => {
+    setMenuOpen(false)
     void supabase.auth.signOut()
   }
-  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false)
-  const moreMenuRef = useRef<HTMLDivElement | null>(null)
 
-  useEffect(() => {
-    if (!isMoreMenuOpen) {
-      return undefined
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!moreMenuRef.current) {
-        return
-      }
-
-      const target = event.target as Node
-      if (!moreMenuRef.current.contains(target)) {
-        setIsMoreMenuOpen(false)
-      }
-    }
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsMoreMenuOpen(false)
-      }
-    }
-
-    document.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [isMoreMenuOpen])
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth > 1180) {
-        setIsMoreMenuOpen(false)
-      }
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  const isDark = theme === 'blue'
+  const logoSrc = isDark ? '/brand/icon+wordmark_logo_white.png' : '/brand/icon+wordmark_logo_blue.png'
+  const savedMessage = saveLabel(saveState, lastSavedAt)
 
   return (
-    <header className="topbar glass-panel">
-      {/* <div className="topbar__brand">
-        <img
-          src="/brand/icon+wordmark logo.png"
-          alt=""
-          className="topbar__brand-icon"
-          width={32}
-          height={32}
-          loading="eager"
-          decoding="async"
-          aria-hidden="true"
-        />
-        <div className="topbar__brand-copy">
-          <p className="topbar__logo">Allison's Memory ClockRay</p>
-          <p className="topbar__subtitle">An innovative thinking tool for speaking extempore....</p>
-        </div>
-      </div> */}
+    <header className="bar">
+      <button type="button" className="bar__brand" onClick={onNewMap} aria-label="ClockRay home">
+        <img src={logoSrc} alt="Allison's Memory ClockRay" />
+      </button>
 
-      <img
-          // src="/brand/icon+wordmark_logo_blue.png"
-          src="/brand/icon+wordmark_logo_white.png"
-          alt=""
-          className="h-10"
-          // width={32}
-          // height={40}
-          loading="eager"
-          decoding="async"
-          aria-hidden="true"
-        />
-
-      <div className="topbar__switcher" role="tablist" aria-label="Visualization Mode">
+      <nav className="switcher" aria-label="View">
         {VIEW_OPTIONS.map((option) => (
           <button
             key={option.mode}
             type="button"
-            className={`switcher-pill ${layoutMode === option.mode ? 'is-active' : ''}`}
+            className={layoutMode === option.mode ? 'on' : ''}
+            disabled={!hasSegments}
             onClick={() => onLayoutChange(option.mode)}
-            role="tab"
-            aria-selected={layoutMode === option.mode}
+            aria-pressed={layoutMode === option.mode}
           >
-            {option.label}
+            <Icon icon={option.icon} width={16} height={16} />
+            <span>{option.label}</span>
           </button>
         ))}
-      </div>
+      </nav>
 
-      <div className="topbar__actions">
-        <button type="button" className="ghost-button" onClick={onNewMap}>
-          New Map
-        </button>
-        <button type="button" className="primary-button" onClick={onPresent} disabled={!canPresent}>
-          Present
-        </button>
-        <button type="button" className="ghost-button" onClick={onCompanion} disabled={!canPresent}>
-          Companion
+      <div className="bar__actions">
+        {savedMessage ? (
+          <span
+            className={`bar__save bar__save--${saveState === 'error' ? 'err' : 'ok'}`}
+            aria-live="polite"
+          >
+            {savedMessage}
+          </span>
+        ) : null}
+        <button
+          type="button"
+          className="btn btn--icon btn--ghost"
+          onClick={onToggleTheme}
+          aria-label={`Switch to ${isDark ? 'Daylight' : 'Blue Hour'} theme`}
+          title={`Switch to ${isDark ? 'Daylight' : 'Blue Hour'} theme`}
+        >
+          <Icon icon={isDark ? 'tabler:sun' : 'tabler:moon'} width={16} height={16} />
         </button>
         <button
           type="button"
-          className="ghost-button topbar__action-export-desktop"
-          onClick={onExportPdf}
-          disabled={!canExport}
+          className="btn btn--ghost"
+          onClick={onOpenHistory}
+          aria-label="My maps"
+          title="My maps"
         >
-          Export PDF
+          <Icon icon="tabler:history" width={16} height={16} />
+          <span className="max-md:hidden">My maps</span>
         </button>
-        <span className="topbar__user-email" title={userEmail}>{userEmail}</span>
-        <button type="button" className="ghost-button topbar__signout" onClick={handleSignOut}>
-          Sign Out
+        <button type="button" className="btn btn--ghost" onClick={onNewMap}>
+          <Icon icon="tabler:plus" width={16} height={16} />
+          <span className="max-md:hidden">New</span>
         </button>
-        <div className="topbar__more" ref={moreMenuRef}>
+        <button type="button" className="btn btn--ghost" disabled={!canExport} onClick={onExportPdf}>
+          <Icon icon="tabler:file-export" width={16} height={16} />
+          <span className="max-md:hidden">Export</span>
+        </button>
+        <button type="button" className="btn btn--brand" disabled={!canPresent} onClick={onPresent}>
+          <Icon icon="tabler:presentation" width={16} height={16} />
+          <span className="max-md:hidden">Present</span>
+        </button>
+        <div className="avatar-menu" ref={menuRef}>
           <button
             type="button"
-            className="ghost-button topbar__more-trigger"
+            className="avatar"
+            title={userEmail ? `Signed in as ${userEmail}` : 'Account'}
+            aria-label="Account menu"
             aria-haspopup="menu"
-            aria-expanded={isMoreMenuOpen}
-            onClick={() => setIsMoreMenuOpen((current) => !current)}
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
           >
-            More
+            {avatarLabel(userEmail)}
           </button>
-          {isMoreMenuOpen ? (
-            <div className="topbar__more-menu" role="menu" aria-label="More actions">
+          {menuOpen ? (
+            <div className="avatar-menu__pop" role="menu">
+              {userEmail ? (
+                <div className="avatar-menu__who">
+                  <span className="avatar-menu__label">Signed in as</span>
+                  <span className="avatar-menu__email" title={userEmail}>{userEmail}</span>
+                </div>
+              ) : null}
               <button
                 type="button"
-                className="ghost-button topbar__more-item"
                 role="menuitem"
-                disabled={!canExport}
-                onClick={() => {
-                  setIsMoreMenuOpen(false)
-                  onExportPdf()
-                }}
+                className="avatar-menu__item"
+                onClick={handleSignOut}
               >
-                Export PDF
-              </button>
-              <button
-                type="button"
-                className="ghost-button topbar__more-item"
-                role="menuitem"
-                onClick={() => {
-                  setIsMoreMenuOpen(false)
-                  handleSignOut()
-                }}
-              >
-                Sign Out
+                <Icon icon="tabler:logout" width={16} height={16} />
+                <span>Sign out</span>
               </button>
             </div>
           ) : null}
