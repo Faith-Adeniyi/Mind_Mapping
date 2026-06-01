@@ -90,13 +90,15 @@ export function TopBar({
   }
 
   const isDark = theme === 'blue'
-  const logoSrc = isDark ? '/brand/icon+wordmark_logo_white.png' : '/brand/icon+wordmark_logo_blue.png'
+  const logoFull = isDark ? '/brand/icon+wordmark_logo_white.png' : '/brand/icon+wordmark_logo_blue.png'
+  const logoMark = isDark ? '/brand/icon_logo_white.png' : '/brand/icon_logo_blue.png'
   const savedMessage = saveLabel(saveState, lastSavedAt)
 
   return (
     <header className="bar">
       <button type="button" className="bar__brand" onClick={onNewMap} aria-label="ClockRay home">
-        <img src={logoSrc} alt="Allison's Memory ClockRay" />
+        <img className="bar__brand-full" src={logoFull} alt="Allison's Memory ClockRay" />
+        <img className="bar__brand-mark" src={logoMark} alt="" aria-hidden="true" />
       </button>
 
       <nav className="switcher" aria-label="View">
@@ -126,7 +128,7 @@ export function TopBar({
         ) : null}
         <button
           type="button"
-          className="btn btn--icon btn--ghost"
+          className="btn btn--icon btn--ghost btn--mobile-hide"
           onClick={onToggleTheme}
           aria-label={`Switch to ${isDark ? 'Daylight' : 'Blue Hour'} theme`}
           title={`Switch to ${isDark ? 'Daylight' : 'Blue Hour'} theme`}
@@ -143,11 +145,20 @@ export function TopBar({
           <Icon icon="tabler:history" width={16} height={16} />
           <span className="max-md:hidden">My maps</span>
         </button>
-        <button type="button" className="btn btn--ghost" onClick={onNewMap}>
+        <button
+          type="button"
+          className="btn btn--ghost btn--mobile-hide"
+          onClick={onNewMap}
+        >
           <Icon icon="tabler:plus" width={16} height={16} />
           <span className="max-md:hidden">New</span>
         </button>
-        <button type="button" className="btn btn--ghost" disabled={!canExport} onClick={onExportPdf}>
+        <button
+          type="button"
+          className="btn btn--ghost btn--mobile-hide"
+          disabled={!canExport}
+          onClick={onExportPdf}
+        >
           <Icon icon="tabler:file-export" width={16} height={16} />
           <span className="max-md:hidden">Export</span>
         </button>
@@ -175,6 +186,47 @@ export function TopBar({
                   <span className="avatar-menu__email" title={userEmail}>{userEmail}</span>
                 </div>
               ) : null}
+              <button
+                type="button"
+                role="menuitem"
+                className="avatar-menu__item avatar-menu__item--neutral avatar-menu__item--mobile-only"
+                onClick={() => {
+                  setMenuOpen(false)
+                  onNewMap()
+                }}
+              >
+                <Icon icon="tabler:plus" width={16} height={16} />
+                <span>New map</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="avatar-menu__item avatar-menu__item--neutral avatar-menu__item--mobile-only"
+                onClick={() => {
+                  setMenuOpen(false)
+                  onToggleTheme()
+                }}
+              >
+                <Icon icon={isDark ? 'tabler:sun' : 'tabler:moon'} width={16} height={16} />
+                <span>{isDark ? 'Daylight theme' : 'Blue Hour theme'}</span>
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                className="avatar-menu__item avatar-menu__item--neutral avatar-menu__item--mobile-only"
+                disabled={!canExport}
+                onClick={() => {
+                  setMenuOpen(false)
+                  onExportPdf()
+                }}
+              >
+                <Icon icon="tabler:file-export" width={16} height={16} />
+                <span>Export PDF</span>
+              </button>
+              <div
+                className="avatar-menu__divider avatar-menu__divider--mobile-only"
+                aria-hidden="true"
+              />
               <button
                 type="button"
                 role="menuitem"

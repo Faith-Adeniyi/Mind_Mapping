@@ -83,7 +83,15 @@
 .bar__brand img {
   height: 30px;
   width: auto;
+  max-width: none;
+}
+
+.bar__brand .bar__brand-full {
   display: block;
+}
+
+.bar__brand .bar__brand-mark {
+  display: none;
 }
 
 .bar__actions {
@@ -305,6 +313,29 @@
   background: color-mix(in srgb, #e5484d 14%, transparent);
   color: #e5484d;
   outline: none;
+}
+
+.avatar-menu__item--neutral:hover,
+.avatar-menu__item--neutral:focus-visible {
+  background: var(--surface-high);
+  color: var(--text-main);
+  outline: none;
+}
+
+.avatar-menu__item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.avatar-menu__divider {
+  height: 1px;
+  background: var(--outline);
+  margin: 0.3rem 0.15rem;
+}
+
+.avatar-menu__item--mobile-only,
+.avatar-menu__divider--mobile-only {
+  display: none;
 }
 
 /* ── Workspace (canvas + inspector) ───────────────── */
@@ -2438,11 +2469,39 @@
 
 @media (max-width: 760px) {
   .bar {
-    grid-template-columns: auto 1fr;
     padding: 0 0.8rem;
+    column-gap: 0.4rem;
+  }
+  .bar__brand .bar__brand-full {
+    display: none;
+  }
+  .bar__brand .bar__brand-mark {
+    display: block;
+  }
+  .bar__actions {
+    gap: 0.3rem;
+  }
+  .bar__actions .btn--mobile-hide {
+    display: none;
+  }
+  .bar__save {
+    display: none;
   }
   .switcher {
+    gap: 2px;
+    padding: 3px;
+  }
+  .switcher button {
+    padding: 0.42rem 0.55rem;
+  }
+  .switcher button span {
     display: none;
+  }
+  .avatar-menu__item--mobile-only {
+    display: flex;
+  }
+  .avatar-menu__divider--mobile-only {
+    display: block;
   }
   .canvas {
     padding: 0.7rem;
