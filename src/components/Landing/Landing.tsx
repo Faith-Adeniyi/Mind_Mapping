@@ -300,12 +300,18 @@ export default function Landing() {
           borderBottom: `1px solid ${stuck ? 'var(--lp-cobalt-line)' : 'transparent'}`,
         }}
       >
-        <div className="mx-auto flex items-center justify-between h-[76px] w-[min(100%-2.4rem,1180px)]">
+        <div className="mx-auto flex items-center justify-between h-19 w-[min(100%-2.4rem,1180px)]">
           <a href="#top" className="inline-flex items-center gap-2" aria-label="Allison's Memory Clockray home">
             <img
               src="/brand/icon+wordmark_logo_blue.png"
               alt="Allison's Memory Clockray"
-              className="h-[30px] w-auto block"
+              className="h-7.5 w-auto max-w-none block max-sm:hidden"
+            />
+            <img
+              src="/brand/icon_logo_blue.png"
+              alt=""
+              aria-hidden="true"
+              className="h-7.5 w-auto max-w-none hidden max-sm:block"
             />
           </a>
           <nav className="hidden md:flex items-center gap-8" aria-label="Primary">
@@ -318,7 +324,7 @@ export default function Landing() {
               <a
                 key={href}
                 href={href}
-                className="text-[0.92rem] font-medium transition-colors hover:[color:var(--lp-cobalt)]"
+                className="text-[0.92rem] font-medium transition-colors hover:text-(--lp-cobalt)"
                 style={{ color: 'var(--lp-ink-soft)' }}
               >
                 {label}
@@ -326,9 +332,11 @@ export default function Landing() {
             ))}
           </nav>
           <div className="flex items-center gap-3">
-            <Btn href="#how" variant="ghost" className="hidden sm:inline-flex">
-              See how it works
-            </Btn>
+            <span className="hidden sm:inline-flex">
+              <Btn href="#how" variant="ghost">
+                See how it works
+              </Btn>
+            </span>
             <Btn to="/app" variant="primary">
               Open the app
             </Btn>
@@ -392,7 +400,7 @@ export default function Landing() {
                 </Btn>
               </div>
               <p
-                className="mt-[1.4rem] flex items-center gap-2 font-mono text-[0.74rem]"
+                className="mt-[1.4rem] font-mono text-[0.74rem]"
                 style={{
                   fontFamily: 'var(--lp-font-mono)',
                   letterSpacing: '0.04em',
@@ -402,7 +410,14 @@ export default function Landing() {
                 <LandingIcon
                   name="sync"
                   strokeWidth={2.2}
-                  style={{ color: 'var(--lp-cobalt)', width: '1.1em', height: '1.1em' }}
+                  style={{
+                    color: 'var(--lp-cobalt)',
+                    width: '1.1em',
+                    height: '1.1em',
+                    display: 'inline-block',
+                    verticalAlign: 'middle',
+                    marginRight: '0.5rem',
+                  }}
                 />
                 One source text,{' '}
                 <b style={{ color: 'var(--lp-cobalt)', fontWeight: 500 }}>three synced views</b>.
@@ -464,7 +479,7 @@ export default function Landing() {
           <div className="mx-auto w-[min(100%-2.4rem,1180px)]">
             <div
               ref={registerReveal}
-              className="lp-reveal max-w-[640px] mb-[clamp(2.4rem,4vw,3.5rem)]"
+              className="lp-reveal max-w-160 mb-[clamp(2.4rem,4vw,3.5rem)]"
             >
               <p
                 className="inline-flex items-center gap-2 font-mono text-[0.72rem] uppercase"
@@ -504,7 +519,7 @@ export default function Landing() {
                 <article
                   key={step.num}
                   ref={registerReveal}
-                  className="lp-reveal relative rounded-[18px] px-[1.7rem] py-[2rem]"
+                  className="lp-reveal relative rounded-[18px] px-[1.7rem] py-8"
                   style={{
                     background: 'var(--lp-card)',
                     border: '1px solid var(--lp-cobalt-line)',
@@ -522,7 +537,7 @@ export default function Landing() {
                     {step.num}
                   </p>
                   <div
-                    className="my-[1.2rem] w-[52px] h-[52px] rounded-[14px] grid place-items-center"
+                    className="my-[1.2rem] w-13 h-13 rounded-[14px] grid place-items-center"
                     style={{
                       background: 'var(--lp-cobalt-soft)',
                       color: 'var(--lp-cobalt)',
@@ -571,7 +586,7 @@ export default function Landing() {
           <div className="mx-auto w-[min(100%-2.4rem,1180px)]">
             <div
               ref={registerReveal}
-              className="lp-reveal max-w-[640px] mx-auto text-center mb-[clamp(2.4rem,4vw,3.5rem)]"
+              className="lp-reveal max-w-160 mx-auto text-center mb-[clamp(2.4rem,4vw,3.5rem)]"
             >
               <p
                 className="inline-flex items-center justify-center gap-2 font-mono text-[0.72rem] uppercase"
@@ -644,7 +659,7 @@ export default function Landing() {
                 }}
               >
                 {view === 'clock' ? (
-                  <div className="lp-panel-in relative z-[1]">
+                  <div className="lp-panel-in relative z-1">
                     <MiniHead kicker="Clock View" meta="6 anchors" />
                     <div className="grid place-items-center" style={{ minHeight: 320 }}>
                       <LandingClock compact autoCycle initialActive={3} />
@@ -653,13 +668,13 @@ export default function Landing() {
                 ) : null}
 
                 {view === 'grid' ? (
-                  <div className="lp-panel-in relative z-[1]">
+                  <div className="lp-panel-in relative z-1">
                     <MiniHead kicker="Grid View" meta="Scan all anchors" />
-                    <div className="grid gap-[0.7rem] grid-cols-3">
+                    <div className="grid gap-[0.7rem] grid-cols-2 sm:grid-cols-3">
                       {SAMPLE_SEGMENTS.map((s, i) => (
                         <div
                           key={s.kw}
-                          className="rounded-[12px] grid gap-[0.4rem] content-start"
+                          className="rounded-xl grid gap-[0.4rem] content-start"
                           style={{
                             background: 'rgba(255,255,255,.045)',
                             border: '1px solid rgba(255,255,255,.09)',
@@ -703,7 +718,7 @@ export default function Landing() {
                 ) : null}
 
                 {view === 'linear' ? (
-                  <div className="lp-panel-in relative z-[1]">
+                  <div className="lp-panel-in relative z-1">
                     <MiniHead kicker="Linear View" meta="Opening → close" />
                     <div className="relative grid gap-[0.85rem] pl-[1.4rem]">
                       <span
@@ -793,7 +808,7 @@ export default function Landing() {
           <div className="mx-auto w-[min(100%-2.4rem,1180px)]">
             <div
               ref={registerReveal}
-              className="lp-reveal max-w-[640px] mb-[clamp(2.4rem,4vw,3.5rem)]"
+              className="lp-reveal max-w-160 mb-[clamp(2.4rem,4vw,3.5rem)]"
             >
               <p
                 className="inline-flex items-center gap-2 font-mono text-[0.72rem] uppercase"
@@ -842,7 +857,7 @@ export default function Landing() {
                   }}
                 >
                   <div
-                    className="w-[46px] h-[46px] rounded-[13px] grid place-items-center mb-1"
+                    className="w-11.5 h-11.5 rounded-[13px] grid place-items-center mb-1"
                     style={{ background: 'var(--lp-cobalt)', color: '#fff' }}
                   >
                     <LandingIcon name={c.icon} style={{ width: 23, height: 23 }} />
@@ -905,7 +920,7 @@ export default function Landing() {
           <div className="mx-auto w-[min(100%-2.4rem,1180px)]">
             <div
               ref={registerReveal}
-              className="lp-reveal max-w-[640px] mx-auto text-center mb-[clamp(2.4rem,4vw,3.5rem)]"
+              className="lp-reveal max-w-160 mx-auto text-center mb-[clamp(2.4rem,4vw,3.5rem)]"
             >
               <p
                 className="inline-flex items-center justify-center gap-2 font-mono text-[0.72rem] uppercase"
@@ -938,7 +953,7 @@ export default function Landing() {
                 <div
                   key={f.title}
                   ref={registerReveal}
-                  className="lp-reveal rounded-[12px]"
+                  className="lp-reveal rounded-xl"
                   style={{
                     background: 'var(--lp-card)',
                     border: '1px solid var(--lp-cobalt-line)',
@@ -955,7 +970,7 @@ export default function Landing() {
                     {f.title}
                   </h4>
                   <p
-                    className="mt-[0.35rem] text-[0.88rem] leading-[1.5]"
+                    className="mt-[0.35rem] text-[0.88rem] leading-normal"
                     style={{ color: 'var(--lp-ink-soft)' }}
                   >
                     {f.body}
@@ -971,7 +986,7 @@ export default function Landing() {
           <div className="mx-auto w-[min(100%-2.4rem,1180px)]">
             <div
               ref={registerReveal}
-              className="lp-reveal max-w-[640px] mx-auto text-center mb-[clamp(2.4rem,4vw,3.5rem)]"
+              className="lp-reveal max-w-160 mx-auto text-center mb-[clamp(2.4rem,4vw,3.5rem)]"
             >
               <p
                 className="inline-flex items-center justify-center gap-2 font-mono text-[0.72rem] uppercase"
@@ -1001,14 +1016,14 @@ export default function Landing() {
 
             <div
               ref={registerReveal}
-              className="lp-reveal max-w-[780px] mx-auto grid gap-3"
+              className="lp-reveal max-w-195 mx-auto grid gap-3"
             >
               {FAQS.map((f, i) => {
                 const open = openFaq === i
                 return (
                   <div
                     key={f.q}
-                    className="rounded-[12px] overflow-hidden"
+                    className="rounded-xl overflow-hidden"
                     style={{
                       background: 'var(--lp-card)',
                       border: '1px solid var(--lp-cobalt-line)',
@@ -1158,7 +1173,13 @@ export default function Landing() {
             <img
               src="/brand/icon+wordmark_logo_blue.png"
               alt="Allison's Memory Clockray"
-              className="h-[26px]"
+              className="h-6.5 max-w-none block max-sm:hidden"
+            />
+            <img
+              src="/brand/icon_logo_blue.png"
+              alt=""
+              aria-hidden="true"
+              className="h-6.5 max-w-none hidden max-sm:block"
             />
           </div>
           <div className="flex gap-6">
@@ -1171,7 +1192,7 @@ export default function Landing() {
               <a
                 key={href}
                 href={href}
-                className="text-[0.88rem] transition-colors hover:[color:var(--lp-cobalt)]"
+                className="text-[0.88rem] transition-colors hover:text-(--lp-cobalt)"
                 style={{ color: 'var(--lp-ink-soft)' }}
               >
                 {label}
